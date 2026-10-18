@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.local/
+*.tsbuildinfo
+*.tar.gz
+*.log
+test-results/
