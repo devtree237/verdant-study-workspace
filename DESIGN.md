@@ -17,3 +17,11 @@ Borrow only: progressive disclosure for task metadata and an independent review/
 | Scoped useGSAP and contextSafe | GSAP official React documentation | Animation lifecycle | Reliable cleanup on navigation |
 
 Technical reference: https://gsap.com/resources/React/
+
+## Test Centre and Botanical Calm upgrade
+
+Reference: user-provided https://test.quizrr.in/analysis-demo#comparative-analysis, inspected directly in the browser on 20 October 2026. Personal analysis supplies overview, performance, time quality and buckets, attempts, difficulty, subject movement, chapter errors, improvement scenarios, question journey and per-question review. Comparative supplies cohort performance, time/accuracy, hourly and difficulty comparison. Adapt the workflow hierarchy and measured-data relationships into Verdant; retain existing white/mint/emerald visual identity.
+
+User specification locks #107C41 main actions, tonal sage secondary actions, 240ms/40ms entry cascade, 220ms shared indicators, 800ms progress, 400ms counters, tabular rolling timer digits and 4-second breathing focus state. Refero bundled motion.md supplies feedback/continuity/hierarchy, interruptibility, explicit-property transitions and reduced-motion rules. Existing unavailable live Refero subscription is unchanged.
+
+Real data rule: question papers are authored, imported from validated JSON, or assembled from existing user questions; no seeded bank. Attempts record actual timings/events. Cohort comparison uses only imported actual results and names its source size and empirical percentile method. No predicted exam percentile without historical exam data. All core scoring/analytics are deterministic and require no AI.

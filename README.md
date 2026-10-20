@@ -41,3 +41,21 @@ GSAP, `@gsap/react`, Flip, and Draggable are registered explicitly. Scoped `useG
 ## Validation
 
 Unit tests cover natural language dates, recurrence parsing, an empty initial state, demo-data migration, nested mastery calculations, review intervals, linked task identity, file validation, literal search across pages, and speech chunk boundaries. TypeScript and the Vite production build provide additional checks. Browser checks cover the connected task, recall, resource, and assessment flows at desktop and mobile widths.
+
+## Test Centre
+
+The timed testing workspace follows the personal and comparative workflow patterns of the user-supplied Quizrr analysis demo, adapted to Verdant’s existing design. It does not connect to Quizrr accounts or import its private question bank.
+
+Create papers manually, import validated paper JSON, or assemble existing practice questions from your Resource Vault. Single correct, exact-set multiple correct, and numeric answers support per-question marks, penalties, target time, difficulty, and explanations. Paper snapshots keep historical results intact when you edit a paper. Shared-paper imports preserve canonical question IDs; explicit cloning creates a separate paper.
+
+An absolute deadline, saved responses, review flags, per-question times, answer changes, and events support resuming after reload and automatic expiry. The report includes subject/chapter/difficulty scores, quality of time, final-answer time intervals, attempt evaluation, subject movement, manual error labels, correction scenarios, a chronological question journey, painful questions, answer-key review, and Mistake Book capture. Submitted attempts also appear in the main assessment history.
+
+Comparative analysis accepts actual cohort JSON/CSV or pasted result records. Export/share a result to compare the same paper and revision. Rank uses competition ranking, and empirical percentile uses lower scores plus half of tied scores divided by the imported cohort size. Official exam percentile prediction is not supplied. Full question-level data unlocks difficulty and hourly comparisons; summary-only imports show only supported metrics. No cohort, ranks, or activity are fabricated.
+
+Testing data is separately saved under verdant.testing.v1 in localStorage. Use Export test workspace for a paper/attempt/cohort backup, and Import JSON to merge it back. The general Workspace settings export covers the original study records; uploaded file binaries remain separate.
+
+AI is not required for the test engine or analysis. Optional future AI could draft questions, explanations, or study suggestions from material, subject to checking their answers. A live multi-user leaderboard and cross-device synchronization would require a shared authenticated service and actual participant results.
+
+Botanical Calm adds shared navigation/tab indicators, route cascades, bounded spring feedback, 800ms mastery progress, 400ms counters, rolling timer digits, a breathing active focus card, subtle leaf motion, sage secondary actions, chart gridlines, clearer surfaces, and reduced-motion alternatives.
+
+Validation for this upgrade: 32 unit tests passed, including scoring, numeric tolerance, exact-set marking, immutable snapshots, timing/expiry, imported-cohort ties and validation. Browser QA covered paper authoring, question types, answer/review/clear, reload/resume, submission, solutions, mistake capture, and detailed comparison using an actual recorded result. Browser download-event automation was unavailable; JSON export uses standard browser Blob downloads, and a visible/shareable JSON result is also provided.
