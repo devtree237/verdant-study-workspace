@@ -9,9 +9,12 @@ export function useWorkspaceMotion(scope: RefObject<HTMLDivElement | null>) {
     const media = window.matchMedia('(prefers-reduced-motion: reduce)');
     const seen = new WeakSet<Element>();
     const cardSelector = '.task-card,.mistake-card,.folder-card,.resource-row,.label-card,.analytics-panel,.empty-state,.question-editor,.sidebar-folder-tree,.subject-subnav,.test-card';
+    const headerSelector = '.page-heading .page-eyebrow,.page-heading h1,.page-heading p,.page-heading-actions';
+    const primarySelector = '.daily-progress,.learning-banner,.analytics-hero,.analytics-stats>div,.module-summary>div,.test-summary>div';
     let frame = 0;
     let route = '';
     let indicatorReady = false;
+    let indicatorTarget = '';
     const nav = root.querySelector<HTMLElement>('.sidebar-nav');
     const indicator = document.createElement('span');
     indicator.className = 'active-nav-indicator';
@@ -31,16 +34,22 @@ export function useWorkspaceMotion(scope: RefObject<HTMLDivElement | null>) {
       });
     });
 
-    const positionIndicator = contextSafe!(() => {
+    const positionIndicator = contextSafe!((force = false) => {
       if (!nav) return;
       const active = nav.querySelector<HTMLElement>('.nav-item.active,.subject-nav.active');
       if (!active || !active.getClientRects().length) {
+        gsap.killTweensOf(indicator);
         gsap.set(indicator, { opacity: 0 });
+        indicatorTarget = '';
         return;
       }
       const parent = nav.getBoundingClientRect();
       const box = active.getBoundingClientRect();
-      const target = { x: box.left - parent.left, y: box.top - parent.top, width: box.width, height: box.height, opacity: 1 };
+      const target = { x: box.left - parent.left + nav.scrollLeft, y: box.top - parent.top + nav.scrollTop, width: box.width, height: box.height, opacity: 1 };
+      const key = [target.x, target.y, target.width, target.height].map(value => Math.round(value * 10)).join(':');
+      // Text counters mutate every frame; only a real layout change should move the pill.
+      if (!force && key === indicatorTarget) return;
+      indicatorTarget = key;
       if (!indicatorReady || media.matches) gsap.set(indicator, target);
       else gsap.to(indicator, { ...target, duration: motion.state, ease: motion.easeSoft, overwrite: true });
       indicatorReady = true;
@@ -51,14 +60,14 @@ export function useWorkspaceMotion(scope: RefObject<HTMLDivElement | null>) {
       if (next === route) return;
       route = next;
       if (media.matches) return;
-      const header = root.querySelectorAll('.page-heading .page-eyebrow,.page-heading h1,.page-heading p,.page-heading-actions');
+      const header = root.querySelectorAll(headerSelector);
       gsap.fromTo(header, { y: 8, opacity: 0 }, {
-        y: 0, opacity: 1, duration: .24, stagger: .025,
+        y: 0, opacity: 1, duration: motion.structural,
         ease: motion.easeOut, clearProps: 'opacity,transform', overwrite: 'auto',
       });
-      const primary = root.querySelectorAll('.daily-progress,.learning-banner,.analytics-hero,.analytics-stats>div,.module-summary>div,.test-summary>div');
+      const primary = root.querySelectorAll(primarySelector);
       gsap.fromTo(primary, { y: 8, opacity: 0 }, {
-        y: 0, opacity: 1, duration: .3, stagger: .04, delay: .08,
+        y: 0, opacity: 1, duration: motion.structural, stagger: .04, delay: motion.structural,
         ease: motion.easeOut, clearProps: 'opacity,transform', overwrite: 'auto',
       });
     });
@@ -102,6 +111,8 @@ export function useWorkspaceMotion(scope: RefObject<HTMLDivElement | null>) {
       if (media.matches || !(event.target instanceof Element)) return;
       const button = event.target.closest<HTMLButtonElement>('button');
       if (!button || button.disabled || button.classList.contains('task-checkbox')) return;
+      // Sliding indicators provide navigation feedback without scaling their measured targets.
+      if (button.closest('.sidebar-nav,.view-tabs')) return;
       gsap.fromTo(button, { scale: .97 }, { scale: 1, duration: .44, ease: motion.spring, clearProps: 'transform', overwrite: 'auto' });
     });
     const disclosure = contextSafe!((event: Event) => {
@@ -111,9 +122,11 @@ export function useWorkspaceMotion(scope: RefObject<HTMLDivElement | null>) {
     });
     const preference = () => {
       if (media.matches) {
-        const moving = root.querySelectorAll<HTMLElement>(`${cardSelector},.page-heading .page-eyebrow,.page-heading h1,.page-heading p,.page-heading-actions,button`);
+        const moving = root.querySelectorAll<HTMLElement>(`${cardSelector},${headerSelector},${primarySelector},button`);
         gsap.killTweensOf(moving);
         gsap.set(moving, { clearProps: 'opacity,transform' });
+        gsap.killTweensOf(indicator);
+        positionIndicator(true);
       }
       layout();
     };
