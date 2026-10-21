@@ -100,12 +100,12 @@ export function useWorkspaceMotion(scope: RefObject<HTMLDivElement | null>) {
     const over = contextSafe!((event: PointerEvent) => {
       if (media.matches || event.pointerType === 'touch' || !(event.target instanceof Element)) return;
       const card = event.target.closest<HTMLElement>('.folder-card,.mistake-card,.label-card,.resource-row,.test-card');
-      if (card && !card.contains(event.relatedTarget as Node)) gsap.to(card, { boxShadow: '0 5px 20px rgba(16,60,35,.07)', duration: motion.fast, overwrite: 'auto' });
+      if (card && !card.contains(event.relatedTarget as Node)) gsap.to(card, { boxShadow: '0 5px 20px rgba(106,67,255,.08)', duration: motion.fast, overwrite: 'auto' });
     });
     const out = contextSafe!((event: PointerEvent) => {
       if (media.matches || !(event.target instanceof Element)) return;
       const card = event.target.closest<HTMLElement>('.folder-card,.mistake-card,.label-card,.resource-row,.test-card');
-      if (card && !card.contains(event.relatedTarget as Node)) gsap.to(card, { boxShadow: '0 2px 6px rgba(16,40,25,.03)', duration: motion.state, overwrite: 'auto', clearProps: 'boxShadow' });
+      if (card && !card.contains(event.relatedTarget as Node)) gsap.to(card, { boxShadow: '0 2px 6px rgba(46,0,91,.03)', duration: motion.state, overwrite: 'auto', clearProps: 'boxShadow' });
     });
     const press = contextSafe!((event: Event) => {
       if (media.matches || !(event.target instanceof Element)) return;
