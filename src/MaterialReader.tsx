@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Download, ExternalLink, Pause, Play, Search, Square, Volume2 } from 'lucide-react';
 import type { Resource } from './model';
@@ -6,6 +6,9 @@ import { extractMaterial, searchMaterial, speechChunks } from './materials';
 import type { ReadableMaterial } from './materials';
 import { fileStore } from './store';
 import { duration, gsap, useGSAP } from './ui';
+import './reader-workspace.css';
+const PdfReader=lazy(()=>import('./PdfReader').then(module=>({default:module.PdfReader})));
+
 
 function markedText(text:string, ranges:{start:number;end:number;active?:boolean}[], spoken:{start:number;end:number}|null):ReactNode[] {
   const boundaries=new Set([0,text.length]);
@@ -25,10 +28,11 @@ export function MaterialReader({resource,onCapture}:{resource:Resource;onCapture
   const [progress,setProgress]=useState('Opening your material…');
   const [error,setError]=useState('');
   const [url,setUrl]=useState('');
+  const [blob,setBlob]=useState<Blob|null>(null);
   const [query,setQuery]=useState('');
   const [matchIndex,setMatchIndex]=useState(0);
   const [pageIndex,setPageIndex]=useState(0);
-  const [view,setView]=useState<'text'|'original'>('text');
+  const [view,setView]=useState<'text'|'original'>(resource.type==='PDF'?'original':'text');
   const [voices,setVoices]=useState<SpeechSynthesisVoice[]>([]);
   const [voiceURI,setVoiceURI]=useState('');
   const [rate,setRate]=useState(1);
@@ -48,12 +52,14 @@ export function MaterialReader({resource,onCapture}:{resource:Resource;onCapture
   useEffect(()=>{
     let active=true, objectURL='';
     async function load(){
+      setError('');
       try{
         if(!resource.fileKey)throw new Error('No file is attached. Choose Edit resource to upload your material.');
         const blob=await fileStore('get',resource.fileKey);
         if(!blob)throw new Error('This file is not stored in this browser. Upload it again from Edit resource.');
         if(!active)return;
-        objectURL=URL.createObjectURL(blob);setUrl(objectURL);
+        objectURL=URL.createObjectURL(blob);setUrl(objectURL);setBlob(blob);
+        if(isPDF&&view==='original'){setProgress('');return;}
         const cached=await fileStore('get',resource.fileKey+':reader');
         let parsed:ReadableMaterial|null=null;
         if(cached){try{const value=JSON.parse(await cached.text());if(value.version===1&&Array.isArray(value.pages))parsed=value;}catch{/* Rebuild the cache from the original. */}}
@@ -61,12 +67,12 @@ export function MaterialReader({resource,onCapture}:{resource:Resource;onCapture
           parsed=await extractMaterial(new File([blob],resource.fileName||resource.title+(isPDF?'.pdf':'.txt'),{type:blob.type}),message=>{if(active)setProgress(message);});
           await fileStore('put',resource.fileKey+':reader',new Blob([JSON.stringify(parsed)],{type:'application/json'})).catch(()=>{});
         }
-        if(active){setMaterial(parsed);setProgress('');if(!parsed.wordCount&&isPDF)setView('original');}
+        if(active){setMaterial(parsed);setProgress('');}
       }catch(e){if(active){setError(e instanceof Error?e.message:'Unable to read this file. Try uploading it again.');setProgress('');}}
     }
     void load();
     return()=>{active=false;if(objectURL)URL.revokeObjectURL(objectURL);};
-  },[resource.fileKey,resource.fileName,resource.title,isPDF]);
+  },[resource.fileKey,resource.fileName,resource.title,isPDF,view]);
 
   useEffect(()=>{
     if(!speechAvailable)return;
@@ -124,7 +130,9 @@ export function MaterialReader({resource,onCapture}:{resource:Resource;onCapture
     }
   }
 
+  if(isPDF&&view==='original'&&blob)return <section className="material-reader material-reader-pdf"><div className="reader-mode-actions"><span>PDF workspace</span><button className="button secondary small" onClick={()=>setView('text')}><Volume2 size={14}/>Text & read aloud</button></div><Suspense fallback={<p role="status" className="reader-hint">Opening your PDF workspace…</p>}><PdfReader resource={resource} blob={blob} onCapture={onCapture}/></Suspense></section>;
   return <section className="material-reader" ref={ref} aria-label="Material reader">
+    {isPDF&&blob&&<div className="reader-mode-actions"><span>Text & read aloud</span><button className="button secondary small" onClick={()=>{stop();setView('original');}}><ChevronLeft size={14}/>PDF workspace</button></div>}
     <div className="reader-file-heading"><div><b>{resource.fileName||resource.title}</b><span>{material?`${material.wordCount.toLocaleString()} words · ${material.pages.length} ${isPDF?'pages':'sections'}`:progress}</span></div>{url&&<a className="icon-btn" href={url} download={resource.fileName||resource.title} aria-label="Download original material" title="Download original"><Download size={17}/></a>}</div>
     {error&&<p className="form-error" role="alert">{error}</p>}
     {material&&<>
@@ -134,7 +142,7 @@ export function MaterialReader({resource,onCapture}:{resource:Resource;onCapture
       {speechError&&<p className="form-error" role="alert">{speechError}</p>}
       {material.warning&&<p className="reader-hint">{material.warning}</p>}
       <div className="reader-navigation"><div className="reader-view-switch" role="group" aria-label="Document view"><button className={view==='text'?'active':''} onClick={()=>setView('text')}>Text reader</button>{isPDF&&<button className={view==='original'?'active':''} onClick={()=>{stop();setView('original');}}>Original PDF</button>}</div><div className="reader-pages"><button className="icon-btn" aria-label="Previous page" disabled={pageIndex===0} onClick={()=>navigate(pageIndex-1)}><ChevronLeft size={16}/></button><label>{pageLabel}<select aria-label={`Go to ${pageLabel.toLowerCase()}`} value={pageIndex} onChange={e=>navigate(Number(e.target.value))}>{material.pages.map((p,i)=><option key={p.number} value={i}>{p.number}</option>)}</select><span>of {material.pages.length}</span></label><button className="icon-btn" aria-label="Next page" disabled={pageIndex===material.pages.length-1} onClick={()=>navigate(pageIndex+1)}><ChevronRight size={16}/></button></div></div>
-      {view==='text'?<div className="reader-page" ref={textRef} tabIndex={0} aria-label={`${pageLabel} ${pageIndex+1} text`} onMouseUp={capture} onKeyUp={e=>{if(e.key==='Shift')capture();}}><span className="reader-page-label">{pageLabel.toUpperCase()} {pageIndex+1}</span>{page?.text?<div className="reader-text">{markedText(page.text,matches.map((m,i)=>({...m,active:i===matchIndex})).filter(m=>m.pageIndex===pageIndex),spoken?.pageIndex===pageIndex?spoken:null)}</div>:<p className="reader-hint">No readable text on this {pageLabel.toLowerCase()}. {isPDF?'Open the original PDF to view this page.':''}</p>}</div>:<iframe key={pageIndex} className="pdf-viewer" title={`${resource.title}, page ${pageIndex+1}`} src={`${url}#page=${pageIndex+1}`}/>}
+      {view==='text'?<div className="reader-page" ref={textRef} tabIndex={0} aria-label={`${pageLabel} ${pageIndex+1} text`} onMouseUp={capture} onKeyUp={e=>{if(e.key==='Shift')capture();}}><span className="reader-page-label">{pageLabel.toUpperCase()} {pageIndex+1}</span>{page?.text?<div className="reader-text">{markedText(page.text,matches.map((m,i)=>({...m,active:i===matchIndex})).filter(m=>m.pageIndex===pageIndex),spoken?.pageIndex===pageIndex?spoken:null)}</div>:<p className="reader-hint">No readable text on this {pageLabel.toLowerCase()}. {isPDF?'Open the original PDF to view this page.':''}</p>}</div>:<p className="reader-hint" role="status">Opening the PDF workspace…</p>}
       <p className="reader-hint reader-bottom-hint">Select text to copy it into Quick capture. Read-aloud starts on the current {pageLabel.toLowerCase()} and continues through the document.</p>
     </>}
     {url&&isPDF&&<a className="reader-original-link" href={`${url}#page=${pageIndex+1}`} target="_blank" rel="noreferrer">Open original PDF in a new tab<ExternalLink size={13}/></a>}

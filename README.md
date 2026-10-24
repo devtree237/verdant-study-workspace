@@ -24,13 +24,26 @@ pnpm preview
 - Switch between grouped lists, draggable boards, and week/day calendars. Stage selectors provide keyboard-accessible board controls. Complete or delete a task with Undo.
 - Log your own mistakes with Markdown/LaTeX, screenshots, error categories, and solutions. Active recall schedules 1/3/14-day reviews. A failed recall also adds an urgent task for today.
 - Create nested folders. Upload PDFs, Word (.docx), UTF-8 text, and Markdown documents (up to 25 MB). Add Markdown notes, links, and custom quizzes. The split study view saves notes, captures mistakes, and adds linked study tasks.
-- Open a saved material to search its actual text, jump between PDF pages or document sections, and download the original. Select passages into Quick capture. Read-aloud uses installed device voices and supports pause, resume, stop, and speed selection. Images and scanned PDFs need a text layer for search and speech; original PDFs remain viewable. DOCX text view does not preserve full layout, equations, or images.
+- Open a saved PDF in the Resource Vault's annotation workspace. Search all pages; zoom, fit width, or expand the reader; highlight text or areas; draw with a pen, circles, or rectangles; and add editable notes. Undo/redo and per-file autosave preserve your marks. Download the original, an annotated PDF (full notes included in an appendix), an annotation JSON backup, or a rectangular/circular PNG capture containing actual page pixels and annotations. Keyboard users can focus the page, press Enter to begin drawing, adjust with arrows (Shift for larger steps), and press Enter to finish or Escape to cancel.
+- Switch to Text & read aloud to search extracted text, jump between pages/sections, and select passages into Quick capture. Read-aloud supports pause, resume, stop, and speed selection. Scanned PDFs need a text layer for search and speech; drawings and snapshots still work. DOCX text view does not preserve full layout, equations, or images.
 - Attach your own practice questions to any resource. Folder assessments collect those questions. Quiz and flashcard modes record results, calculate mastery, and send missed questions to the Mistake Book. No questions are generated or fabricated.
 - Focus sessions, assessment history, and mastery analytics reflect your activity. Empty history shows zero rather than invented progress.
 
 ## Storage
 
 Study records persist in localStorage. Original uploaded materials, extracted text, and screenshots persist in IndexedDB. Document extraction runs locally and speech uses local device voices. Everything remains in the browser on the current device; there is no cross-device sync or server database. Reminders are delivered while the app is open. Workspace settings export study records as JSON; uploaded files are not included.
+
+Optional Study Chat sends only the conversation and attached document text you choose to send to your configured AI provider. Task dictation uses the browser's speech service or, when explicitly selected and connected, Google Cloud Speech. These services may process text/audio remotely. Local study records are not automatically sent to either service.
+
+## Chat, appearance, and voice entry
+
+Study Chat is a separate sidebar page. Configure a Gemini API key or an OpenAI-compatible chat endpoint, model, and key through AI connection settings. A local compatible endpoint can omit a key. External endpoints require HTTPS and must permit browser requests through CORS. Keys stay in session storage by default; Remember on this device explicitly opts into local storage. They are not embedded in the application source or deployed build. Conversations are stored separately on this device and can be exported. Real text/PDF/DOCX/Markdown attachments are extracted locally and are sent only with your message; scanned PDFs need a text layer.
+
+The top-bar moon/sun button changes the entire workspace theme and remembers your choice. Without a saved choice, appearance follows your system setting. Uploaded PDF pages and image pixels keep their original colors.
+
+In Quick Add or Edit task, use Dictate task, choose English (India) or Hindi, then stop dictation before saving. Recognized words append to the title without replacing what you typed. Browser speech availability depends on the browser and its recognition service.
+
+For Google Cloud Speech, choose that provider in the task form and enter your quota/billing project ID. The supplied public Google OAuth client ID is already configured. Before connecting, enable Cloud Speech-to-Text and billing, grant the signed-in account the required Speech and Service Usage permissions, and configure the OAuth consent screen/test users. Add the exact deployed origin `https://verdant-study-workspace.indigoperch2.chatgpt.site` to the client's authorized JavaScript origins; for development, add the exact localhost origin you use. Connect Google from the form, then record a phrase of up to 55 seconds. Access tokens and audio remain temporary; recordings go to Google only for recognition and are not saved in the study workspace. A client ID alone does not authorize or fund requests. See [Google token model](https://developers.google.com/identity/oauth2/web/guides/use-token-model) and [Speech setup](https://docs.cloud.google.com/speech-to-text/docs/setup).
 
 An upgrade migration removes the first development version's fixed example records while preserving user-created records and unlinking references to removed examples.
 
