@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest';
-import { analyseAttempt, answerQuestion, clearAnswer, compareCohort, createAttempt, paperFingerprint, parseCohortJSON, parsePaperJSON, questionStatus, scoreQuestion, setErrorCategory, submitAttempt, tickAttempt, toggleReview, validateAttempt, validatePaper, visitQuestion, type TestPaper, type TestQuestion, type TestResponse } from './testing-model';
+import { describe, expect, it, vi } from 'vitest';
+import { analyseAttempt, answerQuestion, clearAnswer, compareCohort, createAttempt, getAttemptQuestions, getAttemptOptionOrder, recordIntegrityEvent, paperFingerprint, parseCohortJSON, parsePaperJSON, questionStatus, scoreQuestion, setErrorCategory, submitAttempt, tickAttempt, toggleReview, validateAttempt, validatePaper, visitQuestion, type TestPaper, type TestQuestion, type TestResponse } from './testing-model';
+import { DEFAULT_INTEGRITY_POLICY, GUARDED_INTEGRITY_POLICY } from './cbt-integrity';
 
 // Deliberately tiny test fixtures; nothing in this file is imported by the app.
 const question = (overrides: Partial<TestQuestion> = {}): TestQuestion => ({
@@ -9,6 +10,63 @@ const question = (overrides: Partial<TestQuestion> = {}): TestQuestion => ({
 });
 const paper = (questions = [question()]): TestPaper => ({ id: 'paper', title: 'An authored test', description: '', durationMinutes: 2, questions, createdAt: 1000, updatedAt: 1000 });
 const response = (value: number[] | string, overrides: Partial<TestResponse> = {}): TestResponse => ({ value, markedReview: false, visited: true, visits: 1, seconds: 10, changes: 0, ...overrides });
+
+describe('CBT presentation and integrity persistence', () => {
+  it('shuffles presentation within subjects while retaining canonical keys, fingerprints and grading', () => {
+    const original = paper([question(), question({ id: 'two', subject: 'Chemistry' }), question({ id: 'three' }), question({ id: 'four', subject: 'Chemistry' })]);
+    const random = vi.spyOn(Math, 'random').mockReturnValue(0);
+    let attempt;
+    try { attempt = createAttempt(original, 1000, { candidateName: '  Learner  ', integrityPolicy: { ...DEFAULT_INTEGRITY_POLICY, shuffleQuestions: true, shuffleOptions: true } }); }
+    finally { random.mockRestore(); }
+    expect(attempt.candidateName).toBe('Learner');
+    expect(getAttemptQuestions(attempt).map(q => q.id)).toEqual(['three', 'one', 'four', 'two']);
+    expect(attempt.currentQuestionId).toBe('three');
+    expect(attempt.paper.questions).toEqual(original.questions);
+    expect(paperFingerprint(attempt.paper)).toBe(paperFingerprint(original));
+    const order = getAttemptOptionOrder(attempt, 'three');
+    expect(order).toEqual([1, 2, 0]);
+    attempt = answerQuestion(attempt, 'three', [order[0]], 2000);
+    expect(analyseAttempt(submitAttempt(attempt, 3000)).correct).toBe(1);
+    expect(validateAttempt(JSON.parse(JSON.stringify(attempt)))).toEqual(attempt);
+  });
+  it('resumes legacy attempts in canonical order and rejects corrupted display metadata', () => {
+    const attempt = createAttempt(paper(), 1000);
+    const { integrity: _integrity, ...legacy } = attempt;
+    expect(validateAttempt(legacy).integrity).toBeUndefined();
+    expect(getAttemptQuestions(legacy).map(q => q.id)).toEqual(['one']);
+    expect(getAttemptOptionOrder(legacy, 'one')).toEqual([0, 1, 2]);
+    expect(() => validateAttempt({ ...attempt, displayOrder: ['missing'] })).toThrow('exact permutation');
+    expect(() => validateAttempt({ ...attempt, optionOrder: { one: [0, 0, 1] } })).toThrow('exact permutation');
+    expect(() => validateAttempt({ ...attempt, optionOrder: { unknown: [0, 1, 2] } })).toThrow('known choice');
+    expect(() => createAttempt(paper(), 1000, { candidateName: 'x'.repeat(101) })).toThrow('Candidate name');
+  });
+  it('records monotonic observations, coalesces browser bursts and submits only at an explicit threshold', () => {
+    let attempt = createAttempt(paper(), 1000, { integrityPolicy: { ...GUARDED_INTEGRITY_POLICY, autoSubmitAfter: 2 } });
+    attempt = recordIntegrityEvent(attempt, { id: 'a', kind: 'focus-loss', at: 5000, questionId: 'one', detail: 'hidden' });
+    attempt = recordIntegrityEvent(attempt, { id: 'b', kind: 'fullscreen-exit', at: 5200 });
+    expect(attempt.integrity?.events).toHaveLength(1);
+    expect(() => submitAttempt(attempt, 6000, 'integrity')).toThrow('limit has not');
+    attempt = recordIntegrityEvent(attempt, { id: 'c', kind: 'focus-loss', at: 8000 });
+    attempt = recordIntegrityEvent(attempt, { id: 'd', kind: 'auto-submit', at: 7900, detail: 'threshold' });
+    expect(attempt.integrity?.events.at(-1)?.at).toBe(8000);
+    attempt = submitAttempt(attempt, 8000, 'integrity');
+    expect(attempt.submissionReason).toBe('integrity');
+    expect(attempt.responses.one.seconds).toBe(7);
+    expect(validateAttempt(JSON.parse(JSON.stringify(attempt)))).toEqual(attempt);
+    expect(recordIntegrityEvent(attempt, { id: 'e', kind: 'focus-loss', at: 9000 })).toBe(attempt);
+  });
+  it('bounds imported observations to known questions and the measured attempt timeline', () => {
+    const attempt = tickAttempt(createAttempt(paper(), 1000, { integrityPolicy: { ...GUARDED_INTEGRITY_POLICY } }), 5000);
+    const event = { id: 'a', kind: 'focus-loss', at: 5000, questionId: 'one' };
+    expect(() => validateAttempt({ ...attempt, integrity: { ...attempt.integrity, events: [{ ...event, at: 9999 }] } })).toThrow('timeline');
+    expect(() => validateAttempt({ ...attempt, integrity: { ...attempt.integrity, events: [{ ...event, questionId: 'unknown' }] } })).toThrow('unknown question');
+    expect(() => recordIntegrityEvent(attempt, { ...event, kind: 'focus-loss', questionId: 'unknown' })).toThrow('does not belong');
+    const expired = recordIntegrityEvent(attempt, { ...event, kind: 'focus-loss', at: attempt.deadlineAt + 100 });
+    expect(expired.submissionReason).toBe('expired');
+    expect(expired.integrity?.events).toEqual([]);
+    expect(expired.lastTickAt).toBe(attempt.deadlineAt);
+  });
+});
 
 describe('test scoring', () => {
   it('awards positive marks and applies the authored negative marking only to wrong answers', () => {

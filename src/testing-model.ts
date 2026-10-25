@@ -1,3 +1,5 @@
+import { appendIntegrityEvent, countIntegrityIncidents, createTestIntegrity, validateIntegrityEvent, validateIntegrityPolicy, validateTestIntegrity, type IntegrityEvent, type IntegrityPolicy, type TestIntegrity } from './cbt-integrity';
+
 /** Test papers and attempts contain only questions and results supplied by the user. */
 export type Difficulty = 'Easy' | 'Moderate' | 'Tough';
 export type QuestionKind = 'single' | 'multiple' | 'numeric';
@@ -23,8 +25,11 @@ export type TestAttempt = {
   id: string; paper: TestPaper; status: 'running' | 'submitted'; startedAt: number;
   deadlineAt: number; lastTickAt: number; currentQuestionId: string;
   responses: Record<string, TestResponse>; events: AttemptEvent[];
-  submittedAt?: number; submissionReason?: 'manual' | 'expired';
+  submittedAt?: number; submissionReason?: 'manual' | 'expired' | 'integrity';
+  candidateName?: string; integrity?: TestIntegrity;
+  displayOrder?: string[]; optionOrder?: Record<string, number[]>;
 };
+export type AttemptOptions = { candidateName?: string; integrityPolicy?: IntegrityPolicy };
 export type QuestionResult = 'correct' | 'incorrect' | 'unattempted' | 'unvisited';
 export type TimeCategory = 'Perfect' | 'Wasted' | 'Overtime' | 'Confused' | 'Other' | 'Unattempted';
 export type QuestionAnalysis = {
@@ -197,15 +202,43 @@ export function questionStatus(q: TestQuestion, response?: TestResponse): 'unvis
   return answered ? 'answered' : response?.visited ? 'unanswered' : 'unvisited';
 }
 
-export function createAttempt(paper: TestPaper, now = Date.now()): TestAttempt {
+function candidateName(value: unknown): string | undefined {
+  if (value === undefined || value === '') return undefined;
+  const name = text(value, 'Candidate name', 100);
+  if (/[\x00-\x1f\x7f]/.test(name)) throw new Error('Candidate name cannot contain control characters.');
+  return name;
+}
+function shuffled<T>(values: T[]): T[] {
+  const result = [...values];
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result;
+}
+/** Presentation order never changes the canonical question or answer-key snapshot. */
+export function getAttemptQuestions(attempt: TestAttempt): TestQuestion[] {
+  if (!attempt.displayOrder) return attempt.paper.questions;
+  const byId = new Map(attempt.paper.questions.map(q => [q.id, q]));
+  return attempt.displayOrder.map(id => byId.get(id)!);
+}
+export function getAttemptOptionOrder(attempt: TestAttempt, questionId: string): number[] {
+  const question = getQuestion(attempt, questionId);
+  return attempt.optionOrder?.[questionId] ?? question.options.map((_, index) => index);
+}
+export function createAttempt(paper: TestPaper, now = Date.now(), options: AttemptOptions = {}): TestAttempt {
   validNow(now);
-  const copy = snapshot(paper), first = copy.questions[0].id;
+  const copy = snapshot(paper), policy = validateIntegrityPolicy(options.integrityPolicy), name = candidateName(options.candidateName);
+  const displayOrder = policy.shuffleQuestions ? [...new Set(copy.questions.map(q => q.subject))].flatMap(subject => shuffled(copy.questions.filter(q => q.subject === subject).map(q => q.id))) : undefined;
+  const optionOrder = policy.shuffleOptions ? Object.fromEntries(copy.questions.filter(q => q.kind !== 'numeric').map(q => [q.id, shuffled(q.options.map((_, i) => i))])) : undefined;
+  const first = displayOrder?.[0] ?? copy.questions[0].id;
   const responses = Object.fromEntries(copy.questions.map(q => [q.id, blankResponse(q)]));
   responses[first] = { ...responses[first], visited: true, visits: 1 };
   return { id: newId(), paper: copy, status: 'running', startedAt: now, deadlineAt: now + copy.durationMinutes * 60_000,
-    lastTickAt: now, currentQuestionId: first, responses, events: [{ type: 'start', at: now, questionId: first }] };
+    lastTickAt: now, currentQuestionId: first, responses, events: [{ type: 'start', at: now, questionId: first }],
+    integrity: createTestIntegrity(policy), ...(name ? { candidateName: name } : {}), ...(displayOrder ? { displayOrder } : {}), ...(optionOrder ? { optionOrder } : {}) };
 }
-function finish(attempt: TestAttempt, at: number, reason: 'manual' | 'expired'): TestAttempt {
+function finish(attempt: TestAttempt, at: number, reason: 'manual' | 'expired' | 'integrity'): TestAttempt {
   return { ...attempt, status: 'submitted', submittedAt: at, submissionReason: reason,
     events: [...attempt.events, { type: 'submit', at }] };
 }
@@ -255,9 +288,21 @@ export function toggleReview(attempt: TestAttempt, id: string, now = Date.now())
   return { ...next, responses: { ...next.responses, [id]: { ...response, markedReview, visited: true, visits: response.visits + (response.visited ? 0 : 1) } },
     events: [...next.events, { type: 'review', at: next.lastTickAt, questionId: id, markedReview }] };
 }
-export function submitAttempt(attempt: TestAttempt, now = Date.now(), _reason?: 'manual' | 'expired'): TestAttempt {
+export function submitAttempt(attempt: TestAttempt, now = Date.now(), reason?: 'manual' | 'expired' | 'integrity'): TestAttempt {
   const next = tickAttempt(attempt, now);
-  return next.status === 'submitted' ? next : finish(next, next.lastTickAt, 'manual');
+  if (next.status === 'submitted') return next;
+  if (reason === 'integrity' && (!next.integrity || next.integrity.policy.mode !== 'guarded' || next.integrity.policy.autoSubmitAfter === null || countIntegrityIncidents(next.integrity.events) < next.integrity.policy.autoSubmitAfter)) throw new Error('The selected integrity incident limit has not been reached.');
+  return finish(next, next.lastTickAt, reason === 'integrity' ? 'integrity' : 'manual');
+}
+/** Keep browser observations on the same monotonic timeline as measured question time. */
+export function recordIntegrityEvent(attempt: TestAttempt, value: IntegrityEvent): TestAttempt {
+  if (attempt.status !== 'running') return attempt;
+  const event = validateIntegrityEvent(value);
+  if (event.questionId !== undefined) getQuestion(attempt, event.questionId);
+  const next = tickAttempt(attempt, event.at);
+  if (next.status !== 'running' || !next.integrity || next.integrity.policy.mode !== 'guarded') return next;
+  const integrity = appendIntegrityEvent(next.integrity, { ...event, at: next.lastTickAt });
+  return integrity === next.integrity ? next : { ...next, integrity };
 }
 /** User-authored diagnosis is permitted after submission without changing a score or answer. */
 export function setErrorCategory(attempt: TestAttempt, id: string, category: string): TestAttempt {
@@ -345,6 +390,26 @@ export function validateAttempt(value: unknown): TestAttempt {
   if (raw.status !== 'running' && raw.status !== 'submitted') throw new Error('Invalid attempt status.');
   const currentQuestionId = text(raw.currentQuestionId, 'Current question ID');
   if (!paper.questions.some(q => q.id === currentQuestionId)) throw new Error('The current question is missing from the paper.');
+  const name = candidateName(raw.candidateName);
+  let displayOrder: string[] | undefined, optionOrder: Record<string, number[]> | undefined;
+  const questionIds = new Set(paper.questions.map(q => q.id));
+  if (raw.displayOrder !== undefined) {
+    if (!Array.isArray(raw.displayOrder) || raw.displayOrder.length !== questionIds.size || new Set(raw.displayOrder).size !== questionIds.size || raw.displayOrder.some(id => typeof id !== 'string' || !questionIds.has(id))) throw new Error('Question display order must be an exact permutation of the paper.');
+    displayOrder = [...raw.displayOrder] as string[];
+  }
+  if (raw.optionOrder !== undefined) {
+    const orders = object(raw.optionOrder, 'Option display order');
+    optionOrder = Object.fromEntries(Object.entries(orders).map(([id, values]) => {
+      const q = paper.questions.find(question => question.id === id);
+      if (!q || q.kind === 'numeric' || !Array.isArray(values) || values.length !== q.options.length || new Set(values).size !== q.options.length || values.some(index => !Number.isInteger(index) || index < 0 || index >= q.options.length)) throw new Error('Option display order must be an exact permutation of known choice indices.');
+      return [id, [...values] as number[]];
+    }));
+  }
+  const integrity = raw.integrity === undefined ? undefined : validateTestIntegrity(raw.integrity);
+  for (const event of integrity?.events ?? []) {
+    if (event.at < startedAt || event.at > lastTickAt) throw new Error('Integrity observations must be within the attempt timeline.');
+    if (event.questionId !== undefined && !questionIds.has(event.questionId)) throw new Error('An integrity observation references an unknown question.');
+  }
   const rawResponses = object(raw.responses, 'Responses');
   const responses = Object.fromEntries(paper.questions.map(q => {
     const r = object(rawResponses[q.id], 'Question response');
@@ -384,12 +449,14 @@ export function validateAttempt(value: unknown): TestAttempt {
   if (raw.status === 'submitted') {
     submittedAt = number(raw.submittedAt, 'Submitted timestamp', startedAt, deadlineAt);
     if (submittedAt !== lastTickAt || events.at(-1)?.type !== 'submit' || events.at(-1)?.at !== submittedAt || submissions.length !== 1) throw new Error('A submitted attempt must have a final submission event and matching time.');
-    if (raw.submissionReason !== 'manual' && raw.submissionReason !== 'expired') throw new Error('Invalid submission reason.');
+    if (raw.submissionReason !== 'manual' && raw.submissionReason !== 'expired' && raw.submissionReason !== 'integrity') throw new Error('Invalid submission reason.');
     submissionReason = raw.submissionReason;
     if (submissionReason === 'expired' && submittedAt !== deadlineAt) throw new Error('An expired attempt must finish at its deadline.');
+    if (submissionReason === 'integrity' && (!integrity || integrity.policy.mode !== 'guarded' || integrity.policy.autoSubmitAfter === null || countIntegrityIncidents(integrity.events) < integrity.policy.autoSubmitAfter)) throw new Error('Integrity submission requires the selected incident limit to have been reached.');
   }
   return { id: text(raw.id, 'Attempt ID'), paper, status: raw.status, startedAt, deadlineAt, lastTickAt,
-    currentQuestionId, responses, events, ...(submittedAt === undefined ? {} : { submittedAt, submissionReason }) };
+    currentQuestionId, responses, events, ...(submittedAt === undefined ? {} : { submittedAt, submissionReason }),
+    ...(name ? { candidateName: name } : {}), ...(integrity ? { integrity } : {}), ...(displayOrder ? { displayOrder } : {}), ...(optionOrder ? { optionOrder } : {}) };
 }
 
 export function parseCohortJSON(source: string): CohortRecord[] {
