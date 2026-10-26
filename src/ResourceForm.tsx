@@ -46,7 +46,7 @@ export function ResourceForm({resource,folder,initialUpload=false,onClose}:{reso
     if(!title.trim()||(!unfiled&&!destination)){setError('Add a title and choose a folder or Unfiled.');return;}
     if(unfiled&&!data.subjects.some(item=>item.id===unfiledSubject)){setError('Choose a subject for this unfiled material.');return;}
     if(type==='Link'&&!/^https?:\/\//i.test(url)){setError('Use a complete https:// or http:// web address.');return;}
-    if(upload&&!file&&!resource?.fileKey){setError('Choose a PDF, Word document, text, or Markdown file to upload.');return;}
+    if(upload&&!file&&!resource?.fileKey){setError('Choose a PDF, LaTeX, Word document, text, or Markdown file to upload.');return;}
     if(type==='Quiz'&&!questions.length){setError('Add at least one practice question for your quiz.');return;}
     if(questions.some(q=>!q.prompt.trim()||q.options.length<2||q.options.some(x=>!x.trim())||q.answer>=q.options.length)){setError('Each question needs a prompt, at least two answers, and a valid correct answer.');return;}
     setSaving(true);setError('');
@@ -68,7 +68,7 @@ export function ResourceForm({resource,folder,initialUpload=false,onClose}:{reso
     <form onSubmit={save}><div className="modal-body space-y-4">
       <div className={`material-upload ${dragging?'dragging':''} ${file?'has-file':''}`} onDragOver={e=>{e.preventDefault();setDragging(true);}} onDragLeave={e=>{if(!e.currentTarget.contains(e.relatedTarget as Node))setDragging(false);}} onDrop={e=>{e.preventDefault();setDragging(false);if(saving)return;const selected=e.dataTransfer.files[0];if(selected)void chooseFile(selected);}}>
         <span className="material-upload-icon">{file?<Check size={23}/>:<Upload size={23}/>}</span>
-        <div><b>{file?.name||resource?.fileName||'Bring your own study material'}</b><p>{progress|| (parsed?`${parsed.wordCount.toLocaleString()} words ready · ${parsed.pages.length} ${parsed.kind==='pdf'?'pages':'sections'}`:'PDF, Word (.docx), TXT, or Markdown · up to 25 MB')}</p></div>
+        <div><b>{file?.name||resource?.fileName||'Bring your own study material'}</b><p>{progress|| (parsed?`${parsed.wordCount.toLocaleString()} words ready · ${parsed.pages.length} ${parsed.kind==='pdf'?'pages':'sections'}`:'PDF, LaTeX (.tex), Word (.docx), TXT, or Markdown · up to 25 MB')}</p></div>
         <button type="button" className="button secondary small" disabled={saving||!!progress} onClick={()=>input.current?.click()}>{file||resource?.fileKey?'Replace file':'Choose file'}</button>
         <input ref={input} className="sr-only" type="file" accept={MATERIAL_ACCEPT} aria-label="Upload study material" disabled={saving||!!progress} onChange={e=>{const selected=e.target.files?.[0];if(selected)void chooseFile(selected);e.target.value='';}}/>
       </div>

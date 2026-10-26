@@ -1,15 +1,15 @@
-export type MaterialKind = 'pdf'|'docx'|'text'|'markdown';
+export type MaterialKind = 'pdf'|'docx'|'text'|'markdown'|'latex';
 export type MaterialPage = {number:number;text:string};
 export type ReadableMaterial = {version:1;name:string;kind:MaterialKind;pages:MaterialPage[];wordCount:number;warning?:string};
 export type SearchMatch = {pageIndex:number;start:number;end:number};
 export const MAX_FILE_SIZE=25*1024*1024;
-export const MATERIAL_ACCEPT='.pdf,.docx,.txt,.md,.markdown,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/markdown';
+export const MATERIAL_ACCEPT='.pdf,.tex,.docx,.txt,.md,.markdown,application/pdf,application/x-tex,text/x-tex,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/markdown';
 export function materialKind(name:string):MaterialKind|null {
- const extension=name.toLowerCase().split('.').pop();return extension==='pdf'?'pdf':extension==='docx'?'docx':extension==='txt'?'text':extension==='md'||extension==='markdown'?'markdown':null;
+ const extension=name.toLowerCase().split('.').pop();return extension==='pdf'?'pdf':extension==='docx'?'docx':extension==='tex'?'latex':extension==='txt'?'text':extension==='md'||extension==='markdown'?'markdown':null;
 }
 export function validateMaterial(file:Pick<File,'name'|'size'>):MaterialKind {
  const kind=materialKind(file.name);
- if(!kind)throw new Error('Choose a PDF, Word (.docx), text (.txt), or Markdown (.md) file.');
+ if(!kind)throw new Error('Choose a PDF, LaTeX (.tex), Word (.docx), text (.txt), or Markdown (.md) file.');
  if(file.size>MAX_FILE_SIZE)throw new Error('Choose a file smaller than 25 MB.');
  if(file.size===0)throw new Error('This file is empty. Choose a document with some content.');
  return kind;
@@ -58,6 +58,7 @@ export async function extractMaterial(file:File,onProgress?:(message:string)=>vo
      warning='Text view preserves the words in your document. Download the original for its full formatting, equations, and images.';
    }else{text=new TextDecoder('utf-8',{fatal:true}).decode(await file.arrayBuffer());}
    if(text.length>4_000_000)throw new Error('This file contains too much text. Split it into smaller materials.');
+   if(kind==='latex'){const {latexToStudyText}=await import('./cbt-import');text=latexToStudyText(text);warning='LaTeX is rendered as readable text and math. External images, included files, and custom macros are not executed.';}
    pages=splitTextSections(text);if(!text.trim())warning='No readable text was found in this file. You can still download the original.';
  }
  return {version:1,name:file.name,kind,pages,wordCount:pages.reduce((sum,p)=>sum+(p.text.trim()?p.text.trim().split(/\s+/u).length:0),0),warning};

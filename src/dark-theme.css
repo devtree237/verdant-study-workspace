@@ -18,29 +18,29 @@
 }
 
 :root[data-theme='dark'] {
-  --canvas: #110e18;
-  --surface: #1b1625;
-  --surface-raised: #241c30;
-  --surface-hover: #2a2138;
-  --surface-soft: #261d36;
-  --surface-faint: #18131f;
-  --control-bg: #211a2d;
-  --control-border: #79628e;
+  --canvas: #0d0b14;
+  --surface: #161224;
+  --surface-raised: #211a34;
+  --surface-hover: #29203d;
+  --surface-soft: #211a34;
+  --surface-faint: #100d1b;
+  --control-bg: #1a152a;
+  --control-border: #514165;
   --heading: #f2e8ff;
   --ink: #e3d8ee;
   --muted: #b9a9ca;
   --text-primary: #e3d8ee;
   --text-secondary: #b9a9ca;
-  --border: #42334f;
-  --mint: #18131f;
-  --accent: #b69aff;
-  --accent-rgb: 182, 154, 255;
+  --border: #332942;
+  --mint: #100d1b;
+  --accent: #7c5cff;
+  --accent-rgb: 124, 92, 255;
   --accent-hover: #c5adff;
   --accent-strong: #c6afff;
   --accent-soft: #362548;
   --accent-soft-hover: #46305c;
-  --accent-button: #754af2;
-  --accent-button-hover: #8055ef;
+  --accent-button: #7c5cff;
+  --accent-button-hover: #8b6fff;
   --green: var(--accent);
   --color-botanical: var(--accent);
   --chat-user-surface: #362548;
