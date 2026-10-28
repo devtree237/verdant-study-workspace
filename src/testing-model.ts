@@ -3,6 +3,8 @@ import { appendIntegrityEvent, countIntegrityIncidents, createTestIntegrity, val
 /** Test papers and attempts contain only questions and results supplied by the user. */
 export type Difficulty = 'Easy' | 'Moderate' | 'Tough';
 export type QuestionKind = 'single' | 'multiple' | 'numeric';
+export type TestQuestionGroup = { id: string; name: string; questionIds: string[]; subject: string; kind: QuestionKind };
+export type TestMarking = { marks: number; negativeMarks: number };
 export type TestQuestion = {
   id: string; prompt: string; subject: string; chapter: string; topic: string;
   difficulty: Difficulty; kind: QuestionKind; options: string[]; correctAnswers: number[];
@@ -12,6 +14,7 @@ export type TestQuestion = {
 export type TestPaper = {
   id: string; title: string; description: string; durationMinutes: number;
   questions: TestQuestion[]; createdAt: number; updatedAt: number;
+  groups?: TestQuestionGroup[]; marking?: TestMarking;
 };
 export type TestResponse = {
   value: number[] | string; markedReview: boolean; visited: boolean; visits: number;
@@ -129,6 +132,31 @@ export function validatePaper(value: unknown): TestPaper {
       explanation: optionalText(q.explanation, `${label} explanation`, 100000),
     };
   });
+  let marking: TestMarking | undefined;
+  if (raw.marking !== undefined) {
+    const scheme = object(raw.marking, 'Paper marking scheme');
+    marking = { marks: number(scheme.marks, 'Paper correct marks', .001, 100000), negativeMarks: number(scheme.negativeMarks, 'Paper wrong-answer penalty', 0, 100000) };
+    if (questions.some(question => question.marks !== marking!.marks || question.negativeMarks !== marking!.negativeMarks)) throw new Error('Every question must use the paper’s decided marking scheme.');
+  }
+  let groups: TestQuestionGroup[] | undefined;
+  if (raw.groups !== undefined) {
+    if (!Array.isArray(raw.groups) || !raw.groups.length || raw.groups.length > questions.length) throw new Error('Question groups must contain at least one question each.');
+    const groupIds = new Set<string>(), assigned = new Set<string>(), byId = new Map(questions.map(question => [question.id, question]));
+    groups = raw.groups.map((entry, index) => {
+      const group = object(entry, `Question group ${index + 1}`), id = text(group.id, 'Group ID', 200), name = text(group.name, 'Group name', 200), subject = text(group.subject, 'Group subject', 200);
+      if (groupIds.has(id)) throw new Error('Question group IDs must be unique.'); groupIds.add(id);
+      if (!['single','multiple','numeric'].includes(group.kind as string)) throw new Error('Choose a valid answer type for each question group.');
+      if (!Array.isArray(group.questionIds) || !group.questionIds.length) throw new Error('Each question group must contain at least one question.');
+      const questionIds = group.questionIds.map(value => {
+        const questionId = text(value, 'Grouped question ID', 200), question = byId.get(questionId);
+        if (!question || assigned.has(questionId)) throw new Error('A question must belong to exactly one group.'); assigned.add(questionId);
+        if (question.subject !== subject || question.kind !== group.kind) throw new Error('Questions must use their group’s subject and answer type.');
+        return questionId;
+      });
+      return { id, name, subject, kind: group.kind as QuestionKind, questionIds };
+    });
+    if (assigned.size !== questions.length) throw new Error('Assign every question to a group.');
+  }
   const now = Date.now();
   return {
     id: text(raw.id, 'Paper ID', 200, newId()), title: text(raw.title, 'Paper title', 300),
@@ -136,6 +164,7 @@ export function validatePaper(value: unknown): TestPaper {
     durationMinutes: number(raw.durationMinutes, 'Duration in minutes', 1, 1440), questions,
     createdAt: number(raw.createdAt, 'Created timestamp', 0, Number.MAX_SAFE_INTEGER, now),
     updatedAt: number(raw.updatedAt, 'Updated timestamp', 0, Number.MAX_SAFE_INTEGER, now),
+    ...(groups ? { groups } : {}), ...(marking ? { marking } : {}),
   };
 }
 
@@ -175,6 +204,9 @@ function snapshot(paper: TestPaper): TestPaper {
   const copy = validatePaper(paper);
   copy.questions.forEach(q => { Object.freeze(q.options); Object.freeze(q.correctAnswers); Object.freeze(q); });
   Object.freeze(copy.questions);
+  copy.groups?.forEach(group => { Object.freeze(group.questionIds); Object.freeze(group); });
+  if (copy.groups) Object.freeze(copy.groups);
+  if (copy.marking) Object.freeze(copy.marking);
   return Object.freeze(copy);
 }
 function blankResponse(q: TestQuestion): TestResponse {
@@ -218,9 +250,10 @@ function shuffled<T>(values: T[]): T[] {
 }
 /** Presentation order never changes the canonical question or answer-key snapshot. */
 export function getAttemptQuestions(attempt: TestAttempt): TestQuestion[] {
-  if (!attempt.displayOrder) return attempt.paper.questions;
+  const order = attempt.displayOrder ?? attempt.paper.groups?.flatMap(group => group.questionIds);
+  if (!order) return attempt.paper.questions;
   const byId = new Map(attempt.paper.questions.map(q => [q.id, q]));
-  return attempt.displayOrder.map(id => byId.get(id)!);
+  return order.map(id => byId.get(id)!);
 }
 export function getAttemptOptionOrder(attempt: TestAttempt, questionId: string): number[] {
   const question = getQuestion(attempt, questionId);
@@ -229,7 +262,9 @@ export function getAttemptOptionOrder(attempt: TestAttempt, questionId: string):
 export function createAttempt(paper: TestPaper, now = Date.now(), options: AttemptOptions = {}): TestAttempt {
   validNow(now);
   const copy = snapshot(paper), policy = validateIntegrityPolicy(options.integrityPolicy), name = candidateName(options.candidateName);
-  const displayOrder = policy.shuffleQuestions ? [...new Set(copy.questions.map(q => q.subject))].flatMap(subject => shuffled(copy.questions.filter(q => q.subject === subject).map(q => q.id))) : undefined;
+  const displayOrder = copy.groups
+    ? copy.groups.flatMap(group => policy.shuffleQuestions ? shuffled(group.questionIds) : group.questionIds)
+    : policy.shuffleQuestions ? [...new Set(copy.questions.map(q => q.subject))].flatMap(subject => shuffled(copy.questions.filter(q => q.subject === subject).map(q => q.id))) : undefined;
   const optionOrder = policy.shuffleOptions ? Object.fromEntries(copy.questions.filter(q => q.kind !== 'numeric').map(q => [q.id, shuffled(q.options.map((_, i) => i))])) : undefined;
   const first = displayOrder?.[0] ?? copy.questions[0].id;
   const responses = Object.fromEntries(copy.questions.map(q => [q.id, blankResponse(q)]));
@@ -396,6 +431,14 @@ export function validateAttempt(value: unknown): TestAttempt {
   if (raw.displayOrder !== undefined) {
     if (!Array.isArray(raw.displayOrder) || raw.displayOrder.length !== questionIds.size || new Set(raw.displayOrder).size !== questionIds.size || raw.displayOrder.some(id => typeof id !== 'string' || !questionIds.has(id))) throw new Error('Question display order must be an exact permutation of the paper.');
     displayOrder = [...raw.displayOrder] as string[];
+    if (paper.groups) {
+      let offset = 0;
+      for (const group of paper.groups) {
+        const members = new Set(group.questionIds);
+        if (displayOrder.slice(offset, offset + members.size).some(id => !members.has(id))) throw new Error('Question display order must preserve the paper’s group order and membership.');
+        offset += members.size;
+      }
+    }
   }
   if (raw.optionOrder !== undefined) {
     const orders = object(raw.optionOrder, 'Option display order');

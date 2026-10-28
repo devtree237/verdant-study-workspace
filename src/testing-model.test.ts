@@ -10,6 +10,71 @@ const question = (overrides: Partial<TestQuestion> = {}): TestQuestion => ({
 });
 const paper = (questions = [question()]): TestPaper => ({ id: 'paper', title: 'An authored test', description: '', durationMinutes: 2, questions, createdAt: 1000, updatedAt: 1000 });
 const response = (value: number[] | string, overrides: Partial<TestResponse> = {}): TestResponse => ({ value, markedReview: false, visited: true, visits: 1, seconds: 10, changes: 0, ...overrides });
+const groupedPaper = (): TestPaper => ({
+  ...paper(['a1', 'b1', 'a2', 'b2', 'c1', 'c2'].map(id => question({ id }))), marking: { marks: 4, negativeMarks: 1 },
+  groups: [
+    { id: 'g1', name: 'First section', subject: 'Physics', kind: 'single', questionIds: ['a1', 'a2'] },
+    { id: 'g2', name: 'Second section', subject: 'Physics', kind: 'single', questionIds: ['b1', 'b2'] },
+    { id: 'g3', name: 'Third section', subject: 'Physics', kind: 'single', questionIds: ['c1', 'c2'] },
+  ],
+});
+
+describe('authored groups and paper marking', () => {
+  it('retains mixed legacy marking but rejects deviations from an explicitly decided paper scheme', () => {
+    const legacy = paper([question(), question({ id: 'two', marks: 6, negativeMarks: 2 })]);
+    expect(validatePaper(legacy).questions.map(q => [q.marks, q.negativeMarks])).toEqual([[4, 1], [6, 2]]);
+    expect(validatePaper(legacy).marking).toBeUndefined();
+    expect(() => validatePaper({ ...legacy, marking: { marks: 4, negativeMarks: 1 } })).toThrow('decided marking scheme');
+    expect(() => validatePaper({ ...paper(), marking: { marks: 4, negativeMarks: 0 } })).toThrow('decided marking scheme');
+    expect(validatePaper(groupedPaper()).marking).toEqual({ marks: 4, negativeMarks: 1 });
+  });
+  it('requires exactly one group per question and matching group subject and answer type', () => {
+    const original = groupedPaper(), groups = original.groups!;
+    expect(() => validatePaper({ ...original, groups: groups.slice(0, 2) })).toThrow('Assign every question');
+    expect(() => validatePaper({ ...original, groups: groups.map((g, i) => i ? g : { ...g, questionIds: ['a1', 'b1'] }) })).toThrow('exactly one group');
+    expect(() => validatePaper({ ...original, groups: groups.map((g, i) => i ? g : { ...g, questionIds: ['a1', 'missing'] }) })).toThrow('exactly one group');
+    expect(() => validatePaper({ ...original, groups: groups.map((g, i) => i ? g : { ...g, subject: 'Chemistry' }) })).toThrow('subject and answer type');
+    expect(() => validatePaper({ ...original, groups: groups.map((g, i) => i ? g : { ...g, kind: 'numeric' }) })).toThrow('subject and answer type');
+  });
+  it('shuffles within each authored group without mixing adjacent groups of the same subject and type', () => {
+    const original = groupedPaper(), random = vi.spyOn(Math, 'random').mockReturnValue(0);
+    let attempt;
+    try { attempt = createAttempt(original, 1000, { integrityPolicy: { ...DEFAULT_INTEGRITY_POLICY, shuffleQuestions: true } }); }
+    finally { random.mockRestore(); }
+    expect(attempt.displayOrder).toEqual(['a2', 'a1', 'b2', 'b1', 'c2', 'c1']);
+    expect(attempt.currentQuestionId).toBe('a2');
+    expect(attempt.paper.questions.map(q => q.id)).toEqual(['a1', 'b1', 'a2', 'b2', 'c1', 'c2']);
+    expect(attempt.paper.groups?.map(g => g.questionIds)).toEqual([['a1', 'a2'], ['b1', 'b2'], ['c1', 'c2']]);
+    expect(validateAttempt(JSON.parse(JSON.stringify(attempt)))).toEqual(attempt);
+  });
+  it('uses group order without shuffling and validates imported presentation boundaries', () => {
+    const attempt = createAttempt(groupedPaper(), 1000);
+    expect(attempt.displayOrder).toEqual(['a1', 'a2', 'b1', 'b2', 'c1', 'c2']);
+    const { displayOrder: _order, ...withoutOrder } = attempt;
+    expect(getAttemptQuestions(withoutOrder).map(q => q.id)).toEqual(['a1', 'a2', 'b1', 'b2', 'c1', 'c2']);
+    expect(validateAttempt({ ...attempt, displayOrder: ['a2', 'a1', 'b2', 'b1', 'c2', 'c1'] }).displayOrder).toEqual(['a2', 'a1', 'b2', 'b1', 'c2', 'c1']);
+    expect(() => validateAttempt({ ...attempt, displayOrder: ['a1', 'b1', 'a2', 'b2', 'c1', 'c2'] })).toThrow('group order and membership');
+    expect(() => validateAttempt({ ...attempt, displayOrder: ['b1', 'b2', 'a1', 'a2', 'c1', 'c2'] })).toThrow('group order and membership');
+  });
+  it('freezes independent group and marking snapshots across edits and JSON restoration', () => {
+    const original = groupedPaper(), attempt = createAttempt(original, 1000), restored = validateAttempt(JSON.parse(JSON.stringify(attempt)));
+    original.groups![0].name = 'Edited section'; original.groups![0].questionIds[0] = 'b1'; original.marking!.marks = 99;
+    for (const copy of [attempt.paper, restored.paper]) {
+      expect(copy.groups![0]).toMatchObject({ name: 'First section', questionIds: ['a1', 'a2'] });
+      expect(copy.marking).toEqual({ marks: 4, negativeMarks: 1 });
+      expect(Object.isFrozen(copy.groups)).toBe(true);
+      expect(Object.isFrozen(copy.groups![0])).toBe(true);
+      expect(Object.isFrozen(copy.groups![0].questionIds)).toBe(true);
+      expect(Object.isFrozen(copy.marking)).toBe(true);
+    }
+  });
+  it('keeps legacy revision fingerprints when only grouping or marking descriptors are added', () => {
+    const original = groupedPaper(), { groups: _groups, marking: _marking, ...legacy } = original;
+    expect(paperFingerprint(original)).toBe(paperFingerprint(legacy));
+    expect(paperFingerprint({ ...original, groups: [...original.groups!].reverse() })).toBe(paperFingerprint(legacy));
+    expect(paperFingerprint({ ...original, questions: original.questions.map((q, index) => index ? q : { ...q, marks: 8 }) })).not.toBe(paperFingerprint(legacy));
+  });
+});
 
 describe('CBT presentation and integrity persistence', () => {
   it('shuffles presentation within subjects while retaining canonical keys, fingerprints and grading', () => {

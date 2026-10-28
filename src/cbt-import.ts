@@ -85,13 +85,13 @@ function optionMarkers(content: string): { markers: OptionMarker[]; ambiguous: b
   const masked = maskMath(content), markers: OptionMarker[] = [];
   let offset = 0;
   for (const line of masked.split('\n')) {
-    const candidates = [...line.matchAll(/(?:^|[ \t]+)(?:\(([A-T])\)|([A-T])([).:]))[ \t]+/g)];
+    const candidates = [...line.matchAll(/(?:^|[ \t]+)(?:\(([A-Ta-t])\)|([A-T])([).:]))[ \t]+/g)];
     const first = candidates[0];
     // A new option row must begin with its label, or have a visibly separate
     // inline options region. Single-spaced prose references remain in the stem.
     if (first && (!line.slice(0, first.index).trim() || /^\s{2,}/.test(first[0]))) {
       const style = first[1] ? '()' : first[3];
-      for (const marker of candidates) if ((marker[1] ? '()' : marker[3]) === style) markers.push({ index: offset + marker.index!, end: offset + marker.index! + marker[0].length, label: marker[1] || marker[2], style });
+      for (const marker of candidates) if ((marker[1] ? '()' : marker[3]) === style) markers.push({ index: offset + marker.index!, end: offset + marker.index! + marker[0].length, label: (marker[1] || marker[2]).toUpperCase(), style });
     }
     offset += line.length + 1;
   }
@@ -167,17 +167,39 @@ function parseBlock(source: string, number: string, config: CbtImportDefaults, k
   return question;
 }
 
+function hasQuestionEvidence(source: string): boolean {
+  return optionMarkers(source).markers.length > 0 || /^[ \t]*type[ \t]*[:：][ \t]*(?:numeric|numerical|integer)\b/im.test(source) || /^[ \t]*(?:correct[ \t]*answers?|answers?|key)[ \t]*[:：=]/im.test(source);
+}
+/** Conservative preamble classifier. Callers only omit a leading run when a
+ * later question has explicit question evidence; incomplete stems stay reviewable. */
+export function isCbtInstructionBlock(source: string, underInstructions = false): boolean {
+  if (hasQuestionEvidence(source)) return false;
+  const text = source.replace(/^[ \t]*\[Page\s+\d+\][ \t]*$/gim, '').replace(/\*\*/g, '').trim();
+  if (!text || /\?/.test(text) || /^(?:which|what|why|how|calculate|determine|find|identify|compare|predict|explain)\b/i.test(text)) return false;
+  const heading = /^(?:simulated[ -]+timed[ -]+attempt|competency[ -]+tag(?:ging)?|post[ -]+test[ -]+diagnosis|(?:general[ -]+|test[ -]+|exam[ -]+)?instructions?|directions?|(?:test[ -]+)?guidelines?|marking[ -]+scheme|scoring[ -]+rules?|answer[ -]+recording|confidence[ -]+(?:level|recording|tracking))[ \t]*(?:[:：–—-]|\n|$)/i;
+  if (heading.test(text)) return true;
+  return underInstructions && /^(?:attempt\s+(?:all|each|every|any|\d+)|record\s+(?:your|the)\s+(?:answer|choice|confidence|time)|(?:do\s+not|don't)\s+(?:refer|use|consult|open)|write\s+(?:your\s+)?(?:name|roll\s*(?:no|number))|use\s+(?:a|the|your)\s+(?:answer|response)\s+sheet|read\s+(?:all\s+)?instructions\b)/i.test(text);
+}
+
 export function parseCbtText(input: string, options: Partial<CbtImportDefaults> = {}): CbtParseResult {
   const source = safeSource(input), config = { ...defaults, ...options }, { body, keys, conflicts, warnings } = answerKey(source);
   const markers = [...body.matchAll(/^[ \t]*(?:(?:Q(?:uestion)?\.?[ \t]*)(\d+)[ \t]*[).:：\-]?[ \t]+|(\d+)[ \t]*[).:：\-][ \t]+)(.*)$/gim)]
     .filter(match => !/^[ \t]*Q\.?[ \t]+\d+[ \t]+/i.test(match[0]));
   if (!markers.length) return { questions: [], warnings: [...warnings, 'No numbered questions were recognized. Add clear question numbers and option labels in the extracted text, then parse again.'] };
-  if (markers.length > 1000) throw new Error('A paper may contain at most 1,000 questions. Split this source.');
-  const questions = markers.map((match, index) => {
+  if (markers.length > 2000) throw new Error('A paper may contain at most 1,000 questions. Split this source.');
+  const pages = [...body.matchAll(/^[ \t]*\[Page\s+(\d+)\][ \t]*$/gim)]; let pageIndex = -1;
+  const blocks = markers.map((match, index) => {
     const number = match[1] || match[2], start = match.index! + match[0].length - match[3].length, raw = body.slice(start, markers[index + 1]?.index ?? body.length);
-    const before = body.slice(0, match.index), pages = [...before.matchAll(/^\s*\[Page\s+(\d+)\]\s*$/gim)];
-    return parseBlock(raw, number, config, keys.get(normalizeNumber(number)), pages.length ? Number(pages.at(-1)![1]) : undefined, { warnings, conflict: conflicts.has(normalizeNumber(number)) });
+    while (pages[pageIndex + 1] && pages[pageIndex + 1].index! < match.index!) pageIndex++;
+    return { raw, explicit: !!match[1], question: parseBlock(raw, number, config, keys.get(normalizeNumber(number)), pageIndex >= 0 ? Number(pages[pageIndex][1]) : undefined, { warnings, conflict: conflicts.has(normalizeNumber(number)) }) };
   });
+  const firstQuestion = blocks.findIndex(block => block.explicit || hasQuestionEvidence(block.raw));
+  const introduction = body.slice(0, markers[0].index), underInstructions = /\b(?:instructions?|directions?|guidelines?|how\s+to\s+use)\b/i.test(introduction);
+  let omitted = 0;
+  while (omitted < firstQuestion && !blocks[omitted].explicit && isCbtInstructionBlock(blocks[omitted].raw, underInstructions)) omitted++;
+  const questions = blocks.slice(omitted).map(block => block.question);
+  if (omitted) warnings.push(omitted + ' leading numbered instruction ' + (omitted === 1 ? 'block was' : 'blocks were') + ' omitted before the test questions. The original text remains editable in Source.');
+  if (questions.length > 1000) throw new Error('A paper may contain at most 1,000 questions. Split this source.');
   if (new Set(questions.map(question => question.sourceNumber)).size !== questions.length) warnings.push('Question numbers repeat in this source. Check section boundaries and answer-key mapping carefully.');
   if ([...keys.keys()].some(number => !questions.some(question => normalizeNumber(question.sourceNumber) === number))) warnings.push('Some answer-key entries do not match a recognized question number.');
   return { questions, warnings };

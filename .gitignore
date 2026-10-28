@@ -9,3 +9,7 @@ test-results/
 outputs/
 output/
 tmp/
+
+.env
+.env.*
+!.env.example

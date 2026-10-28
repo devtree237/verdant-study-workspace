@@ -1,9 +1,11 @@
+import { SmoothSelect } from './components/ui/SmoothSelect';
 import { useId, useRef, useState } from 'react';
 import type { CSSProperties, ReactNode, RefObject } from 'react';
 import { Atom, BookOpen, Calculator, CheckCheck, FlaskConical, Info } from 'lucide-react';
 import type { AnalysisGroup, QuestionAnalysis, TestAnalysis as Analysis, TestAttempt } from './testing-model';
 import { getDifficultyGroups, getErrorOptimization, getTimeJourney, getTimeQuality } from './result-metrics';
 import { duration, gsap, useGSAP } from './ui';
+import { AnimatedLineGraph } from './AnimatedLineGraph';
 import './result-charts.css';
 
 const CORRECT = '#12A447';
@@ -167,11 +169,12 @@ export function TimeQualityChart({ analysis }: { analysis: Analysis }) {
 }
 
 export function TimeJourneyCharts({ attempt, analysis }: { attempt: TestAttempt; analysis: Analysis }) {
-  const journey = getTimeJourney(attempt, analysis.questionRows, 30);
+  const [intervalMinutes,setIntervalMinutes]=useState(attempt.paper.durationMinutes<=10?1:attempt.paper.durationMinutes<=30?5:30);
+  const journey = getTimeJourney(attempt, analysis.questionRows, intervalMinutes);
   const [hidden, setHidden] = useState<Set<string>>(new Set());
   const series = [{ key: 'correct', label: 'Correct Attempts', color: CORRECT }, { key: 'incorrect', label: 'Incorrect Attempts', color: INCORRECT }, { key: 'total', label: 'Overall', color: ACCENT }];
   const answeredWithEvents = journey.reduce((sum, interval) => sum + interval.total, 0);
-  return <section className="rc-section"><h3>Time Journey</h3><p className="rc-description">Follow your final correct and incorrect answers as the test progressed. Each answer is counted at its last saved answer time.</p><div className="rc-table-scroll rc-journey-table"><table><caption className="sr-only">Final answers grouped into 30-minute time intervals</caption><thead><tr><th scope="col">Time interval</th><th scope="col" style={{ color: CORRECT }}>Correct attempts</th><th scope="col" style={{ color: INCORRECT }}>Incorrect attempts</th><th scope="col" style={{ color: ACCENT }}>Overall</th></tr></thead><tbody>{journey.map(interval => <tr key={interval.label}><th scope="row">{interval.label}</th><td style={{ color: CORRECT }}>{interval.correct}<small> Qs</small></td><td style={{ color: INCORRECT }}>{interval.incorrect}<small> Qs</small></td><td style={{ color: ACCENT }}>{interval.total}<small> Qs</small></td></tr>)}</tbody></table></div>{answeredWithEvents < analysis.attempted && <p className="rc-data-note">{analysis.attempted - answeredWithEvents} final answers have no saved answer timestamp and are excluded from this chart.</p>}<h3 className="rc-subheading">Graphical View of Time Journey</h3><div className="rc-chart-card"><Legend series={series} hidden={hidden} onToggle={key => setHidden(current => { const next = new Set(current); if (next.has(key)) next.delete(key); else next.add(key); return next; })} /><GroupedBars title="Final correct and incorrect answers by time interval" groups={journey.map(interval => ({ label: interval.label, values: { correct: interval.correct, incorrect: interval.incorrect, total: interval.total } }))} series={series} hidden={hidden} /></div></section>;
+  return <section className="rc-section"><h3>Time Journey</h3><p className="rc-description">Follow your final correct and incorrect answers as the test progressed. Each answer is counted at its last saved answer time.</p><label className="rc-journey-interval">Group answers by<SmoothSelect aria-label="Time journey interval" value={intervalMinutes} onChange={event=>setIntervalMinutes(Number(event.target.value))}>{[1,5,15,30].map(minutes=><option key={minutes} value={minutes}>{minutes} minute{minutes===1?'':'s'}</option>)}</SmoothSelect></label><div className="rc-table-scroll rc-journey-table"><table><caption className="sr-only">Final answers grouped into {intervalMinutes}-minute time intervals</caption><thead><tr><th scope="col">Time interval</th><th scope="col" style={{ color: CORRECT }}>Correct attempts</th><th scope="col" style={{ color: INCORRECT }}>Incorrect attempts</th><th scope="col" style={{ color: ACCENT }}>Overall</th></tr></thead><tbody>{journey.map(interval => <tr key={interval.label}><th scope="row">{interval.label}</th><td style={{ color: CORRECT }}>{interval.correct}<small> Qs</small></td><td style={{ color: INCORRECT }}>{interval.incorrect}<small> Qs</small></td><td style={{ color: ACCENT }}>{interval.total}<small> Qs</small></td></tr>)}</tbody></table></div>{answeredWithEvents < analysis.attempted && <p className="rc-data-note">{analysis.attempted - answeredWithEvents} final answers have no saved answer timestamp and are excluded from this chart.</p>}<h3 className="rc-subheading">Graphical View of Time Journey</h3><div className="rc-chart-card"><Legend series={series} hidden={hidden} onToggle={key => setHidden(current => { const next = new Set(current); if (next.has(key)) next.delete(key); else next.add(key); return next; })} /><AnimatedLineGraph title="Final correct and incorrect answers by time interval" groups={journey.map(interval => ({ label: interval.label, values: { correct: interval.correct, incorrect: interval.incorrect, total: interval.total } }))} series={series} hidden={hidden} /></div></section>;
 }
 
 export function DifficultyCharts({ analysis }: { analysis: Analysis }) {

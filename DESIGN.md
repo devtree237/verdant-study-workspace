@@ -85,3 +85,30 @@ The user's comprehensive report defines the full-page ChatGPT-style stream, fixe
 | Source review before grading | User LaTeX and multi-source key request | AST hierarchy, explicit number matching, key grid, independent solution/source previews |
 
 Verification found and fixed malformed TAB answer headings, continued solution numbering, multi-page solution truncation, and shared-store loading races. Desktop/390px chat, both appearance modes, actual chemistry imports, and transient board pagination were checked locally. No academic questions, generated results, documents, or study activity are shipped as seed data.
+
+
+## Grouped authoring and desktop chat reference — 27 October 2026
+
+The latest ChatGPT desktop screenshot supersedes the earlier decorated welcome composition. Lock the 76px Verdant rail plus approximately 318px history sidebar at wide desktop sizes, a plain centered welcome heading, and a two-row composer close to 800px wide. Preserve Verdant’s violet/plum/light and dark tokens. Keep real model settings, attachment controls, dictation, study commands and explicit context previews; omit unrelated ChatGPT approval or product controls. Phone navigation expands to a labeled drawer, and leaving Chat restores the previous workspace sidebar state.
+
+The authoring screenshot identifies repeated setup and administrative preamble extraction as the central problems. Put subject/type at named question-group level, use existing workspace subjects, and assign review-order ranges in bulk. Lock one marking scheme for the paper. Keep optional chapter/topic/source details collapsed, preserve individual keys and supplied solutions, and clear only incompatible keys when a group changes answer family. Runtime sections and within-section shuffling follow authored group membership. Preserve legacy papers and attempt snapshots.
+
+## Supplied motion references and task calendar — 27 October 2026
+
+The user chose an original GSAP graph in place of React Bits Pro Simple Graph. Its official [Simple Graph documentation](https://pro.reactbits.dev/docs/components/simple-graph) locks the two-second path draw, curves, dots, glow, gradient and scroll-once treatment. This is an independent SVG implementation, requiring no Pro registry or license key. Apply it to Time Journey’s recorded interval counts; keep the exact count table and missing-timestamp disclosure. Cubic handles stay between adjacent measured points so a curve cannot invent a negative count or overshoot a measured peak. Integer ticks, endpoint labels, keyboard/touch tooltips and semantic result colors take priority over decoration. Other result charts retain their existing appropriate bar/pie forms.
+
+The user’s pasted Shredder, floating-folder and thought-line components are narrow interaction references. The Board shredder is a brief visualization of a completed card already persisted in History; its animation callback only clears presentation state. Folder previews use actual resource and child-folder names and open the matching saved item. Chat’s thought line reports the real request lifecycle instead of simulated internal reasoning. Reduced-motion preferences end or skip these effects, and unmount cleanup releases listeners, animation frames and animation contexts.
+
+The supplied event-calendar component governs the calendar layout and view structure. Adapt its controls, event surfaces and selected states to existing Verdant tokens. Map existing tasks into month/week/day/custom-day/agenda/subject views; use task-store actions for scheduling, duration changes and editing. Keep empty or unscheduled data explicit, and keep planned calendar durations separate from measured study time. Dense month cells use an overflow popover rather than overlapping cards. Completed tasks require reopening before rescheduling.
+
+The shared dropdown implementation layers an accessible Base UI popup over the native field’s visible value and event interface. Lock short 220ms entry and 140ms exit motion with a restrained option cascade; cleanup must preserve close/reopen behavior. Native multi-select/listbox fields retain their original form. Popup focus, Escape, viewport containment and reduced motion are functional requirements, including inside existing dialogs and the expanded CBT workspace.
+
+Final local QA corrected hover/click folder toggling, the phone calendar header collision, dropdown labeling and focus forwarding. A 390px layout viewport confirmed day-first calendar navigation and contained menus. The existing documentation attempt supplied the line graph's real counts; isolated status/archive checks did not create messages or task records. ReUI's full MIT attribution is included in the deployed public notices.
+
+## Readable chat task attachments — 28 October 2026
+
+The user's latest request replaces raw completed-task data with cards and explicitly supports both chat and board destinations. Keep the screenshot-locked chat canvas and violet tokens. Place the task shelf in a responsive drawer so it does not decorate or crowd the initial welcome. Show real status, subject, dates, estimates and measured time; unknown measured time remains distinct from zero. Compact composer cards retain their task identity and a clear removal control. Long text becomes a Pasted text attachment with an inspectable full preview.
+
+Native drag and accessible buttons perform the same validated actions. Shared snapshots remain historical views; actions resolve the current saved record before attaching or moving it. A completed record produces a new follow-up and retains its completion in History. Legacy snapshots need a unique current-record match. Stale or ambiguous references remain read-only. Use restrained GSAP entry and press feedback, clean up animation on unmount, and respect reduced motion. Persistence must never depend on an animation callback.
+
+Desktop and 390px checks confirmed readable attachment cards, the drawer's touch-friendly controls, native drag into chat and onto the board dock, preserved History and conservative Undo. No API response or academic data was fabricated for verification.

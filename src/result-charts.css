@@ -9,3 +9,5 @@
 .rc-difficulty-grid .rc-axis-label{font-size:12px}
 .analysis-correction-details{margin-top:24px;border-top:1px solid var(--border);padding-top:18px;color:var(--muted);font-size:12px}
 .analysis-correction-details>summary{cursor:pointer;color:var(--accent);width:fit-content;line-height:1.6}
+
+.rc-journey-interval{display:flex!important;flex-direction:row!important;align-items:center;justify-content:flex-end;gap:10px!important;margin:0 0 15px;font-size:12px;color:var(--muted)}.rc-journey-interval>.flow-select-shell{width:140px!important}

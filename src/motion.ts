@@ -1,6 +1,36 @@
 import type { RefObject } from 'react';
 import { gsap, useGSAP, duration, motion } from './ui';
 
+/** Shared disclosure motion also covers menus rendered through portals. */
+export function useDropdownMotion() {
+ useGSAP((_context, contextSafe) => {
+  const media = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const seen = new WeakSet<Element>(), closing = new Set<HTMLDetailsElement>();
+  const selector = '[role="menu"],[role="listbox"],.chat-command-menu,.notification-panel,.verdant-calendar-popover';
+  const enter = contextSafe!((node: Element) => {
+   if (media.matches || seen.has(node) || node.closest('.flow-select-popup') || !node.getClientRects().length) return;
+   seen.add(node);
+   gsap.fromTo(node, {opacity:0,y:-5,scale:.985}, {opacity:1,y:0,scale:1,duration:motion.state,ease:motion.easeOut,clearProps:'opacity,transform'});
+   const items = node.querySelectorAll('[role="menuitem"],[role="option"],[cmdk-item]');
+   if(items.length)gsap.fromTo(items,{opacity:0,y:4},{opacity:1,y:0,duration:motion.state,stagger:Math.min(.025,.25/items.length),ease:motion.easeOut,clearProps:'opacity,transform'});
+  });
+  const observer = new MutationObserver(records => {for(const record of records)for(const added of record.addedNodes){if(!(added instanceof Element))continue;if(added.matches(selector))enter(added);added.querySelectorAll(selector).forEach(enter);}});
+  observer.observe(document.body,{childList:true,subtree:true});
+  const close = contextSafe!((event: MouseEvent) => {
+   if(media.matches || !(event.target instanceof Element))return;
+   const summary=event.target.closest('summary'),details=summary?.parentElement;
+   if(!(details instanceof HTMLDetailsElement)||!details.open)return;
+   event.preventDefault();
+   if(closing.has(details))return;
+   closing.add(details);
+   const content=Array.from(details.children).filter(child=>child!==summary);
+   gsap.to(content,{opacity:0,y:-3,duration:duration(.14),ease:'power2.in',onComplete:()=>{details.open=false;closing.delete(details);gsap.set(content,{clearProps:'opacity,transform'});}});
+  });
+  document.addEventListener('click',close,true);
+  return()=>{observer.disconnect();document.removeEventListener('click',close,true);closing.clear();};
+ },[]);
+}
+
 /** Botanical Calm: feedback, continuity and hierarchy with one scoped lifecycle. */
 export function useWorkspaceMotion(scope: RefObject<HTMLDivElement | null>) {
   useGSAP((_context, contextSafe) => {

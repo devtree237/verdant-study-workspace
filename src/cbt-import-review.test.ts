@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { getCbtImportReadiness, keyBlocksFor } from './CbtImport';
+import { assertCbtImportSetup, getCbtImportReadiness, keyBlocksFor, nextCbtSourceNumber } from './CbtImport';
 import { mergeCbtAnswerKey, parseCbtAnswerKey } from './cbt-answer-key';
 import type { CbtDraftQuestion } from './cbt-import';
 
@@ -15,6 +15,17 @@ const readiness = (questions: CbtDraftQuestion[], overrides: Partial<Parameters<
 });
 
 describe('separate-key review safeguards', () => {
+  it('validates paper marking and an existing workspace subject before locking setup',()=>{
+    const setup={subject:'Physics',marks:4,negativeMarks:1,idealSeconds:120,difficulty:'Moderate' as const};
+    expect(()=>assertCbtImportSetup(setup,['Physics'])).not.toThrow();
+    expect(()=>assertCbtImportSetup({...setup,marks:0},['Physics'])).toThrow();
+    expect(()=>assertCbtImportSetup({...setup,negativeMarks:-1},['Physics'])).toThrow();
+    expect(()=>assertCbtImportSetup({...setup,subject:'Unknown'},['Physics'])).toThrow(/workspace/);
+  });
+  it('avoids duplicate source numbers after deleting an imported question or continuing a section',()=>{
+    expect(nextCbtSourceNumber([question('a','1'),question('b','3')])).toBe('4');
+    expect(nextCbtSourceNumber(Array.from({length:15},(_,index)=>question('id'+index,String(index+16))))).toBe('31');
+  });
   it('blocks creating a previously reviewed draft while a changed key is pending', () => {
     const draft = [question('1')];
     expect(readiness(draft, { keySource: '1: A', appliedKey: signature('1: A') }).canSave).toBe(true);

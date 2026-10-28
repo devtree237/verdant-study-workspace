@@ -1,6 +1,7 @@
 .main-shell:has(>.topbar+main.chat-page){height:100dvh;min-height:0;overflow:hidden}
-.main-shell>main.chat-page{padding:0;flex:1;min-height:0;display:flex;flex-direction:column;height:calc(100dvh - 62px);overflow:hidden}
+.main-shell>main.chat-page{padding:0;max-width:none;width:100%;margin:0;flex:1;min-height:0;display:flex;flex-direction:column;height:calc(100dvh - 62px);overflow:hidden}
 .chat-page>.page-body{flex:1;min-height:0;height:100%;display:flex;flex-direction:column}
-.chat-page .full-page-chat{height:100%;min-height:0;flex:1;border:0;border-radius:0;box-shadow:none}
+.chat-page .full-page-chat{height:100%;min-height:0;flex:1;max-width:none;width:100%;margin:0;border:0;border-radius:0;box-shadow:none}
 .chat-page>.storage-warning{margin:8px 16px;flex-shrink:0}
 @media(max-width:600px){.main-shell>main.chat-page{height:calc(100dvh - 58px)}}
+@media(min-width:900px){.sidebar-collapsed .sidebar{scrollbar-width:none}.sidebar-collapsed .sidebar::-webkit-scrollbar{display:none}.sidebar-collapsed .quick-add{display:grid;place-items:center;width:40px;min-height:40px;padding:0;margin-left:auto;margin-right:auto}}

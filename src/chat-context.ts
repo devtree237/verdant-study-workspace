@@ -21,7 +21,7 @@ export function buildWorkspaceContexts({ selected, workspace, completedTasks = [
   selected: ChatContextKind[]; workspace: State; completedTasks?: ChatCompletedTask[]; attempts?: TestAttempt[]; documents?: ChatContextDocument[]; now?: Date;
 }): ChatContextSnapshot[] {
   const today = day(0, now), subject = (id: string) => workspace.subjects.find(item => item.id === id)?.name || id || 'Unassigned';
-  const taskData = (task: Task) => ({ title: task.title, subject: subject(task.subject), stage: task.stage, due: task.due || null, priority: task.priority, plannedMinutes: task.duration, notes: task.notes, labels: task.labels, subtasks: task.subtasks.map(item => ({ title: item.title, done: item.done })) });
+  const taskData = (task: Task) => ({ id: task.id, title: task.title, subject: subject(task.subject), stage: task.stage, due: task.due || null, priority: task.priority, plannedMinutes: task.duration, notes: task.notes, labels: task.labels, subtasks: task.subtasks.map(item => ({ title: item.title, done: item.done })) });
   const completed = [...new Map([...workspace.tasks.filter(task => task.done), ...completedTasks].map(task => [task.id, task])).values()];
   const snapshots = [...new Set(selected)].map(id => {
     let value: unknown;

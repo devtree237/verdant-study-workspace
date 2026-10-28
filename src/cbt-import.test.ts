@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getCbtQuestionIssues, latexToStudyText, parseCbtAnswerTokens, parseCbtLatex, parseCbtText } from './cbt-import';
+import { getCbtQuestionIssues, isCbtInstructionBlock, latexToStudyText, parseCbtAnswerTokens, parseCbtLatex, parseCbtText } from './cbt-import';
 
 describe('offline numbered-question imports', () => {
   it('maps a trailing key by source number rather than array position, including multiple correct options', () => {
@@ -81,6 +81,36 @@ describe('offline numbered-question imports', () => {
     expect(parsed.questions.map(q => q.sourceNumber)).toEqual(['12', '13', '14', '15']);
     expect(parsed.questions[0].prompt).toContain('Q    11    CO2');
     expect(parsed.questions.every(q => q.options.length === 2)).toBe(true);
+  });
+  it('omits the screenshot’s numbered administrative preamble before numbering restarts at the real MCQs', () => {
+    const source = '[Page 1]\nInstructions\n1. Simulated Timed Attempt: Attempt all 30 questions in one 60-minute sitting without referring to notes\nor the answer key. Record your chosen option, confidence level, and time spent.\n2. Competency Tag: Record the competency being assessed for each question.\n3. Post-Test Diagnosis: Review your responses only after completing the paper.\nSection A: Questions\n1. Dry vs. Wet Litmus: Which observation is supported?\n(a) Dry only\n(b) Moist only\n(c) Both\n(d) Neither\n2. Quantitative pH: Choose the order.\n(a) First\n(b) Second\n(c) Third\n(d) Fourth';
+    const parsed = parseCbtText(source, { subject: 'Chemistry' });
+    expect(parsed.questions.map(q => q.sourceNumber)).toEqual(['1', '2']);
+    expect(parsed.questions.map(q => q.options.length)).toEqual([4, 4]);
+    expect(parsed.questions[0]).toMatchObject({ prompt: 'Dry vs. Wet Litmus: Which observation is supported?', sourcePage: 1, correctAnswers: [] });
+    expect(parsed.warnings).toContain('3 leading numbered instruction blocks were omitted before the test questions. The original text remains editable in Source.');
+    expect(parsed.warnings.some(warning => warning.includes('numbers repeat'))).toBe(false);
+  });
+  it('retains an incomplete actual first question after administrative instructions and before a complete second question', () => {
+    const parsed = parseCbtText('1. Simulated Timed Attempt\nAttempt the test before consulting answers.\n2. Competency Tag: Record it after the attempt.\n1. Dry vs. Wet Litmus: Explain the observed difference.\n2. Choose a value\nA. One\nB. Two', { subject: 'Chemistry' });
+    expect(parsed.questions.map(q => q.sourceNumber)).toEqual(['1', '2']);
+    expect(parsed.questions[0].prompt).toBe('Dry vs. Wet Litmus: Explain the observed difference.');
+    expect(parsed.questions[0].options).toEqual([]);
+    expect(getCbtQuestionIssues(parsed.questions[0])).toContain('Add 2–20 complete answer options.');
+  });
+  it('keeps explicitly declared numeric questions even without a supplied answer or answer options', () => {
+    const parsed = parseCbtText('Instructions\n1. Write your name and roll number.\n2. Record your confidence after answering.\n1. Calculate concentration.\nType: numeric\n2. Select a value\nA. First\nB. Second', { subject: 'Chemistry' });
+    expect(parsed.questions.map(q => q.sourceNumber)).toEqual(['1', '2']);
+    expect(parsed.questions[0]).toMatchObject({ kind: 'numeric', options: [] });
+    expect(parsed.questions[0].numericAnswer).toBeUndefined();
+    expect(getCbtQuestionIssues(parsed.questions[0])).toContain('Enter the correct numerical answer.');
+  });
+  it('does not discard malformed or question-like blocks solely because they lack options', () => {
+    expect(isCbtInstructionBlock('Competency Tag: Which tag matches the evidence?')).toBe(false);
+    expect(isCbtInstructionBlock('Read the following scenario.', true)).toBe(false);
+    expect(isCbtInstructionBlock('Marking scheme: Choose the correct policy.\nA. First\nB. Second')).toBe(false);
+    const parsed = parseCbtText('1. Read the following scenario.\n2. An incomplete actual question without option markers\n3. Choose a value\nA. One\nB. Two');
+    expect(parsed.questions.map(q => q.sourceNumber)).toEqual(['1', '2', '3']);
   });
 });
 

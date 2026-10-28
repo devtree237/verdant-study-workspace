@@ -52,6 +52,12 @@ describe('explicit Study Chat context', () => {
     const message = { id: 'm', role: 'user', content: 'Hi', createdAt: 1, contexts: [{ id: 'daily', label: 'Daily Tracker', text: 'Data' }, { id: 'daily', label: 'Daily Tracker', text: 'Other' }] };
     expect(() => validateChatHistory({ version: 1, conversations: [{ id: 'c', title: 'Chat', messages: [message], createdAt: 1, updatedAt: 1 }] })).toThrow('workspace context');
   });
+  it('round-trips three connectors and twenty explicitly attached task cards', () => {
+    const contexts = ['daily','history','mistakes',...Array.from({length:20},(_,index)=>`task:selected-${index}`)].map(id=>({id,label:id,text:'Selected snapshot'}));
+    const history = (rows:typeof contexts) => ({version:1,conversations:[{id:'chat',title:'Selected work',createdAt:1,updatedAt:1,messages:[{id:'message',role:'user',content:'Review these tasks',createdAt:1,contexts:rows}]}]});
+    expect(validateChatHistory(history(contexts))[0].messages[0].contexts).toEqual(contexts);
+    expect(()=>validateChatHistory(history([...contexts,{id:'task:too-many',label:'Extra task',text:'Selected snapshot'}]))).toThrow('workspace context');
+  });
   it('groups actual conversation timestamps by date without mutating saved order', () => {
     const chat = (id: string, time: string): Conversation => ({ id, title: id, messages: [], createdAt: Date.parse(time), updatedAt: Date.parse(time) });
     const chats = [chat('older', '2026-09-01T12:00:00'), chat('today', '2026-10-26T12:00:00'), chat('yesterday', '2026-10-25T12:00:00'), chat('week', '2026-10-22T12:00:00')];
