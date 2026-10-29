@@ -5,12 +5,12 @@ import { countAxis, graphLabelIndices, graphPaths } from './line-graph';
 import './animated-line-graph.css';
 
 export type LineGraphSeries = { key: string; label: string; color: string };
-export type LineGraphGroup = { label: string; values: Record<string, number> };
+export type LineGraphGroup = { label: string; values: Record<string, number | null> };
 const display = (value: number) => Number(value.toFixed(2)).toLocaleString('en-IN');
 
 /** Verdant's own SVG renderer; all data comes from the report's measured intervals. */
-export function AnimatedLineGraph({ groups, series, title, hidden = new Set<string>() }: {
-  groups: LineGraphGroup[]; series: LineGraphSeries[]; title: string; hidden?: Set<string>;
+export function AnimatedLineGraph({ groups, series, title, hidden = new Set<string>(), emptyText = 'No answer timestamps were recorded for this selection.' }: {
+  groups: LineGraphGroup[]; series: LineGraphSeries[]; title: string; hidden?: Set<string>; emptyText?: string;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [measuredWidth, setWidth] = useState(0);
@@ -20,9 +20,11 @@ export function AnimatedLineGraph({ groups, series, title, hidden = new Set<stri
   const revealed = useRef(new Set<string>());
   const id = useId().replace(/:/g, '');
   const visible = series.filter(item => !hidden.has(item.key));
-  const H = 315, left = 43, right = 24, top = 30, bottom = 48;
+  const H = 335, left = 46, right = 24, top = 30, bottom = 48;
   const plotWidth = width - left - right, plotHeight = H - top - bottom, baseline = H - bottom;
-  const { ceiling, ticks } = countAxis(groups.flatMap(group => series.map(item => group.values[item.key] || 0)));
+  const valueAt = (group: LineGraphGroup, key: string) => { const value = group.values[key]; return typeof value === 'number' && Number.isFinite(value) ? value : null; };
+  const hasValues = groups.some(group => visible.some(item => valueAt(group, item.key) !== null));
+  const { ceiling, ticks } = countAxis(groups.flatMap(group => series.flatMap(item => { const value = valueAt(group, item.key); return value === null ? [] : [value]; })));
   const x = (index: number) => left + (groups.length > 1 ? index / (groups.length - 1) : .5) * plotWidth;
   const y = (value: number) => baseline - value / ceiling * plotHeight;
   const labels = new Set(graphLabelIndices(groups.length, plotWidth));
@@ -88,25 +90,25 @@ export function AnimatedLineGraph({ groups, series, title, hidden = new Set<stri
       <text className="alg-axis-title" x={left} y={14}>Questions</text>
       {groups.map((group, index) => labels.has(index) && <g key={`label-${index}`}><line className="alg-grid alg-grid-vertical" x1={x(index)} x2={x(index)} y1={top} y2={baseline} /><text className="alg-label" x={x(index)} y={H - 22} textAnchor={index === 0 && groups.length > 1 ? 'start' : index === groups.length - 1 && groups.length > 1 ? 'end' : 'middle'}><title>{group.label}</title>{group.label}</text></g>)}
       {series.map(item => {
-        const points = groups.map((group, index) => ({ x: x(index), y: y(group.values[item.key] || 0) }));
-        const { line, area } = graphPaths(points, baseline);
+        const points = groups.map((group, index) => { const value = valueAt(group, item.key); return value === null ? null : { x: x(index), y: y(value) }; });
+        const segments: { x: number; y: number }[][] = [];
+        for (const point of points) { if (!point) { if (segments.at(-1)?.length) segments.push([]); } else { if (!segments.length) segments.push([]); segments[segments.length - 1].push(point); } }
         return <g key={item.key} className={`alg-series ${hidden.has(item.key) ? 'alg-hidden' : ''}`} style={{ '--alg-color': item.color } as CSSProperties} aria-hidden="true">
-          {area && <path className="alg-area" d={area} fill={`url(#${id}-${item.key})`} clipPath={`url(#${id}-clip)`} />}
-          <path className="alg-line" d={line} fill="none" stroke={item.color} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
-          {points.map((point, index) => <circle key={index} className={`alg-dot ${active === index ? 'alg-dot-active' : ''}`} cx={point.x} cy={point.y} r={active === index ? 5 : 3.5} data-progress={groups.length > 1 ? index / (groups.length - 1) : 0} fill={item.color} />)}
+          {segments.filter(points => points.length).map((points, index) => { const { line, area } = graphPaths(points, baseline); return <g key={index}>{area && <path className="alg-area" d={area} fill={`url(#${id}-${item.key})`} clipPath={`url(#${id}-clip)`} />}<path className="alg-line" d={line} fill="none" stroke={item.color} strokeWidth={2.75} strokeLinecap="round" strokeLinejoin="round" /></g>; })}
+          {points.map((point, index) => point && <circle key={index} className={`alg-dot ${active === index ? 'alg-dot-active' : ''}`} cx={point.x} cy={point.y} r={active === index ? 5.5 : 4} data-progress={groups.length > 1 ? index / (groups.length - 1) : 0} fill={item.color} />)}
         </g>;
       })}
       {selected && active !== null && visible.length > 0 && <line className="alg-cursor" x1={x(active)} x2={x(active)} y1={top} y2={baseline} />}
       {visible.length > 0 && groups.map((group, index) => {
         const hitStart = index === 0 ? left - 10 : (x(index - 1) + x(index)) / 2;
         const hitEnd = index === groups.length - 1 ? width - right + 10 : (x(index) + x(index + 1)) / 2;
-        return <g key={`interval-${index}`} data-interval={index} className="alg-interval" role="button" tabIndex={Math.min(keyboardIndex, groups.length - 1) === index ? 0 : -1} aria-label={`${group.label}. ${visible.map(item => `${item.label}: ${display(group.values[item.key] || 0)} questions`).join('. ')}`} aria-describedby={active === index ? `${id}-tooltip` : undefined} onPointerEnter={() => show(index)} onPointerDown={() => show(index)} onFocus={() => show(index)} onKeyDown={event => keyDown(event, index)}>
+        return <g key={`interval-${index}`} data-interval={index} className="alg-interval" role="button" tabIndex={Math.min(keyboardIndex, groups.length - 1) === index ? 0 : -1} aria-label={`${group.label}. ${visible.map(item => { const value = valueAt(group, item.key); return `${item.label}: ${value === null ? 'not recorded' : `${display(value)} questions`}`; }).join('. ')}`} aria-describedby={active === index ? `${id}-tooltip` : undefined} onPointerEnter={() => show(index)} onPointerDown={() => show(index)} onFocus={() => show(index)} onKeyDown={event => keyDown(event, index)}>
         <rect x={hitStart} y={top - 10} width={hitEnd - hitStart} height={plotHeight + 20} fill="transparent" />
         <title>{group.label}</title>
       </g>; })}
     </svg>
-    {selected && active !== null && visible.length > 0 && <div id={`${id}-tooltip`} role="tooltip" className="alg-tooltip" style={{ left: `clamp(96px, ${x(active) / width * 100}%, calc(100% - 96px))` }}><strong>{selected.label}</strong>{visible.map(item => <span key={item.key}><i style={{ background: item.color }} />{item.label}<b>{display(selected.values[item.key] || 0)} Qs</b></span>)}</div>}
-    {(!groups.length || !visible.length) && <div className="alg-empty">{groups.length ? 'Select a legend item to show it.' : 'No answer intervals recorded.'}</div>}
+    {selected && active !== null && visible.length > 0 && <div id={`${id}-tooltip`} role="tooltip" className="alg-tooltip" style={{ left: `clamp(96px, ${x(active) / width * 100}%, calc(100% - 96px))` }}><strong>{selected.label}</strong>{visible.map(item => <span key={item.key}><i style={{ background: item.color }} />{item.label}<b>{valueAt(selected, item.key) === null ? 'Not recorded' : `${display(valueAt(selected, item.key)!)} Qs`}</b></span>)}</div>}
+    {(!groups.length || !visible.length || !hasValues) && <div className="alg-empty">{!visible.length && groups.length ? 'Select a legend item to show it.' : emptyText}</div>}
     <p className="alg-instructions">Hover, tap, or use arrow keys for exact counts. Each point is one recorded interval; curves show the trend.</p>
   </div>;
 }

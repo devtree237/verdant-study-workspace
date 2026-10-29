@@ -3,7 +3,7 @@ export type Stage = 'To study' | 'In progress' | 'Practicing' | 'Completed';
 export type Task = { id: string; title: string; subject: string; priority: number; due: string; time?: string; duration: number; labels: string[]; stage: Stage; done: boolean; completedAt?: string; recurring?: boolean; reminder?: string; notes: string; subtasks: { id: string; title: string; done: boolean }[]; link?: { type: 'resource' | 'mistake'; id: string }; measuredSeconds?: number; trackingStartedAt?: string; };
 export type TaskHistoryEntry = Task & { archivedAt: string; subjectName?: string; subjectColor?: Subject['color'] };
 export const categories = ['Conceptual gap', 'Formula misapplication', 'Calculation error', 'Misread question', 'Time pressure'] as const;
-export type Mistake = { id: string; title: string; subject: string; topic: string; category: string; prompt: string; wrong: string; solution: string; takeaway: string; difficulty: number; status: 'Needs review' | 'In progress' | 'Mastered'; review: string; attempts: number; image?: string; };
+export type Mistake = { id: string; title: string; subject: string; topic: string; category: string; prompt: string; wrong: string; solution: string; takeaway: string; difficulty: number; mastery?: number; status: 'Needs review' | 'In progress' | 'Mastered'; review: string; attempts: number; image?: string; };
 export type Folder = { id: string; name: string; parent: string | null; subject: string; pinned: boolean; mastery: number };
 export type Question = { prompt: string; options: string[]; answer: number; explanation: string };
 export type Resource = { id: string; title: string; folder: string; subject: string; type: 'Note' | 'PDF' | 'Document' | 'Link' | 'Quiz'; content: string; url?: string; fileKey?: string; fileName?: string; fileSize?: number; fileKind?: 'pdf' | 'docx' | 'text' | 'markdown' | 'latex'; pageCount?: number; mastery: number; pinned: boolean; updated: string; questions?: Question[] };
@@ -53,6 +53,7 @@ export function validateWorkspaceState(value: unknown): State {
   for(const item of records){if(!item||typeof item!=='object'||typeof (item as {id?:unknown}).id!=='string'||!(item as {id:string}).id||ids.has((item as {id:string}).id))throw new Error(`The workspace ${key} contains an invalid or duplicate record.`);ids.add((item as {id:string}).id);}
  }
  for(const task of [...raw.tasks as Task[],...(raw.taskHistory||[]) as Task[]])if(typeof task.title!=='string'||typeof task.subject!=='string'||typeof task.notes!=='string'||typeof task.due!=='string'||!Number.isFinite(task.duration)||!Number.isFinite(task.priority)||!Array.isArray(task.labels)||task.labels.some(label=>typeof label!=='string')||!Array.isArray(task.subtasks)||task.subtasks.some(item=>!item||typeof item.id!=='string'||typeof item.title!=='string'||typeof item.done!=='boolean')||!['To study','In progress','Practicing','Completed'].includes(task.stage)||typeof task.done!=='boolean')throw new Error('A saved task is damaged. Restore a valid workspace export.');
+ for(const mistake of raw.mistakes as Mistake[])if(mistake.mastery!==undefined&&(!Number.isInteger(mistake.mastery)||mistake.mastery<1||mistake.mastery>5))throw new Error('A saved mistake has an invalid mastery rating.');
  return migrateStoredState(value as State);
 }
 export function rollUpMastery(folders:Folder[],resources:Resource[]):Folder[]{

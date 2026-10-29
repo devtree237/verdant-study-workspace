@@ -39,7 +39,7 @@ export function TaskShredder({item,onComplete}:{item:TaskArchiveVisual;onComplet
  completed.current=onComplete;
  useEffect(()=>{
   const element=root.current,face=paper.current,surface=canvas.current;if(!element||!face||!surface)return;
-  let raf=0,alive=true,done=false,last=performance.now(),began=last,age=0,ry=8;
+  let raf=0,alive=true,done=false,last=performance.now(),began=last,age=0,ry=0,exitAt:number|null=null;
   const finish=()=>{if(done||!alive)return;done=true;cancelAnimationFrame(raf);completed.current(item.key);};
   const preference=window.matchMedia('(prefers-reduced-motion: reduce)');
   const visibility=()=>{if(document.hidden)finish();};const motionChange=()=>{if(preference.matches)finish();};
@@ -53,8 +53,17 @@ export function TaskShredder({item,onComplete}:{item:TaskArchiveVisual;onComplet
   const count=Math.max(1,Math.round(width/10)),stripWidth=Math.floor(width/count),strips:Strip[]=Array.from({length:count},(_,index)=>({x:index*stripWidth,width:index===count-1?width-stripWidth*(count-1):stripWidth,curl:(Math.random()<.5?-1:1)*(.35+Math.random()*.55)*DEG,wave:Math.random()*Math.PI*2,random:Math.random(),angle:0,ax:0,ay:0,vy:0,vx:0,free:false,alpha:1,points:[]}));
   const step=(now:number)=>{
    if(!alive||done)return;const dt=clamp((now-last)/1000,0,.05);last=now;age+=dt;
-   if(now-began>2400){finish();return;}
-   const speed=180*(1+1.4*Math.exp(-age/.14));ry+=speed*dt;
+   // Establish the saved-card face before feeding it. Normal completion always
+   // fades away; only navigation, Undo, reduced motion or hidden tabs interrupt.
+   if(exitAt!==null){
+    const leaving=smooth((age-exitAt)/.26);element.style.opacity=String(1-leaving);element.style.transform=`translateY(${leaving*5}px)`;
+    if(leaving>=1){finish();return;}raf=requestAnimationFrame(step);return;
+   }
+   const entering=smooth(age/.22);element.style.opacity=String(entering);element.style.transform=`translateY(${(1-entering)*7}px)`;
+   element.dataset.phase=age<.5?'entering':'feeding';
+   if(age<.5){raf=requestAnimationFrame(step);return;}
+   if(now-began>3600){exitAt=age;element.dataset.phase='exiting';raf=requestAnimationFrame(step);return;}
+   const feed=smooth((age-.5)/1.1),nextY=(lip+8)*feed,speed=dt?(nextY-ry)/dt:0;ry=nextY;
    face.style.transform=`translateY(${ry}px)`;if(ry>=lip)face.style.visibility='hidden';
    if(slit.current)slit.current.style.transform=ry<lip?`translateX(${Math.sin(age*140)*.45}px)`:'';
    ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,surface.width,surface.height);
@@ -78,7 +87,7 @@ export function TaskShredder({item,onComplete}:{item:TaskArchiveVisual;onComplet
     const visibleWidth=strip.width*core,sx=(strip.x+(strip.width-visibleWidth)/2)*texture.scale,v0=height-length;ctx.globalAlpha=strip.alpha;
     for(let index=0;index+3<points.length;index+=3){const distance=index/3*SLIVER,h=Math.min(SLIVER,length-distance);if(h<=0)break;const cos=Math.cos(points[index+2]),sin=Math.sin(points[index+2]);ctx.setTransform(dpr*cos,-dpr*sin,dpr*sin,dpr*cos,dpr*(points[index]+OVER),dpr*points[index+1]);ctx.drawImage(texture.canvas,sx,(v0+distance)*texture.scale,visibleWidth*texture.scale,h*texture.scale,-visibleWidth/2,0,visibleWidth,h+.4);}
    }
-   ctx.globalAlpha=1;if(remaining)raf=requestAnimationFrame(step);else finish();
+   ctx.globalAlpha=1;if(!remaining&&feed>=1){exitAt=age;element.dataset.phase='exiting';}else if(feed>=1)element.dataset.phase='settling';raf=requestAnimationFrame(step);
   };
   raf=requestAnimationFrame(step);document.addEventListener('visibilitychange',visibility);preference.addEventListener('change',motionChange);window.addEventListener('resize',finish);
   return()=>{alive=false;cancelAnimationFrame(raf);document.removeEventListener('visibilitychange',visibility);preference.removeEventListener('change',motionChange);window.removeEventListener('resize',finish);surface.width=0;surface.height=0;};

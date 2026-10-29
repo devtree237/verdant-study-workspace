@@ -10,6 +10,8 @@ import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import remarkGfm from 'remark-gfm';
 import './markdown-tables.css';
+import './scientific-notation.css';
+import { normalizeScientificMarkdown } from './scientific-notation';
 import rehypeKatex from 'rehype-katex';
 import 'katex/contrib/mhchem';
 import { useStore } from './store';
@@ -37,7 +39,7 @@ export function TimerDigits({value}:{value:string}){
  return <span ref={ref} className="timer-digits" aria-label={value}>{Array.from(value).map((digit,index)=><span key={index} className={digit===':'?'timer-separator':'timer-digit'} aria-hidden="true"><span className="timer-digit-inner">{digit}</span></span>)}</span>;
 }
 export function Brand({small=false}:{small?:boolean}) {return <div className="flex items-center gap-2.5"><div className="brand-mark"><Leaf size={small?18:21} strokeWidth={2.1}/></div>{!small&&<span className="text-[23px] font-semibold tracking-[-1px]">verdant<span className="text-emerald-600">.</span></span>}</div>;}
-export function Markdown({children}:{children:string}){return <div className="markdown"><ReactMarkdown remarkPlugins={[remarkGfm,remarkMath]} rehypePlugins={[rehypeKatex]} components={{table:({children,node:_node,...props})=><div className="markdown-table-scroll"><table {...props}>{children}</table></div>}}>{children}</ReactMarkdown></div>;}
+export function Markdown({children}:{children:string}){return <div className="markdown"><ReactMarkdown remarkPlugins={[remarkGfm,remarkMath]} rehypePlugins={[[rehypeKatex,{trust:false}]]} components={{table:({children,node:_node,...props})=><div className="markdown-table-scroll"><table {...props}>{children}</table></div>}}>{normalizeScientificMarkdown(children)}</ReactMarkdown></div>;}
 export function SubjectBadge({id,dotOnly=false}:{id:string;dotOnly?:boolean}){const{data}=useStore();const s=data.subjects.find(x=>x.id===id);if(!s)return null;return <span className={`subject-badge tone-${s.color}`}><span className="subject-dot"/>{!dotOnly&&s.name}</span>;}
 export function Progress({value,className=''}:{value:number;className?:string}){const ref=useRef<HTMLDivElement>(null);const bounded=Math.min(100,Math.max(0,value));useGSAP(()=>{gsap.fromTo(ref.current,{scaleX:0},{scaleX:bounded/100,duration:duration(motion.data),ease:motion.easeOut});},{scope:ref,dependencies:[bounded],revertOnUpdate:true});return <div className={`progress-track ${className}`} role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(bounded)}><div ref={ref} className="progress-fill"/></div>;}
 export function Gauge({value,size=100}:{value:number;size?:number}){const ref=useRef<HTMLDivElement>(null);const bounded=Math.min(100,Math.max(0,value));useGSAP(()=>{gsap.fromTo('.gauge-fill',{strokeDashoffset:264},{strokeDashoffset:264*(1-bounded/100),duration:duration(motion.data),ease:motion.easeOut});},{scope:ref,dependencies:[bounded],revertOnUpdate:true});return <div ref={ref} className="gauge" aria-label={`${bounded}% mastery`}><svg width={size} height={size} viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="42" fill="none" stroke="var(--accent-soft, #E8F0EC)" strokeWidth="7"/><circle className="gauge-fill" cx="50" cy="50" r="42" fill="none" stroke="var(--accent, #107C41)" strokeWidth="7" strokeLinecap="round" strokeDasharray="264" transform="rotate(-90 50 50)"/></svg><div><CountUp value={Math.round(bounded)}/><span className="text-[12px]">%</span></div></div>;}

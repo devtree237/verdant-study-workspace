@@ -1,3 +1,4 @@
+import { pdfPageText } from './pdf-text-layout';
 export type MaterialKind = 'pdf'|'docx'|'text'|'markdown'|'latex';
 export type MaterialPage = {number:number;text:string};
 export type ReadableMaterial = {version:1;name:string;kind:MaterialKind;pages:MaterialPage[];wordCount:number;warning?:string};
@@ -40,15 +41,18 @@ export async function extractMaterial(file:File,onProgress?:(message:string)=>vo
    if(!new TextDecoder().decode(bytes.slice(0,1024)).includes('%PDF-'))throw new Error('This file is not a valid PDF. Choose the original PDF document.');
    const task=pdfjs.getDocument({data:bytes,useSystemFonts:true});
    try{
-     const pdf=await task.promise;if(pdf.numPages>1200)throw new Error('This PDF has more than 1,200 pages. Split it into smaller documents first.');let characters=0;
+     const pdf=await task.promise;if(pdf.numPages>1200)throw new Error('This PDF has more than 1,200 pages. Split it into smaller documents first.');let characters=0;const layoutWarnings=new Set<string>();
      for(let pageNumber=1;pageNumber<=pdf.numPages;pageNumber++){
        onProgress?.(`Reading page ${pageNumber} of ${pdf.numPages}…`);
-       const page=await pdf.getPage(pageNumber);const content=await page.getTextContent();
-       const text=content.items.map(item=>'str' in item?item.str+(item.hasEOL?'\n':' '):'').join('').replace(/[ \t]+\n/g,'\n').trim();
+       const page=await pdf.getPage(pageNumber);const viewport=page.getViewport({scale:1});const content=await page.getTextContent();
+       const fragments=content.items.flatMap(item=>{if(!('str'in item)||!item.str.trim())return[];const[x,y]=viewport.convertToViewportPoint(item.transform[4],item.transform[5]);return[{text:item.str,x,y,width:Math.abs(item.width),height:Math.max(1,Math.abs(item.height))}];});
+       const extracted=pdfPageText(fragments,viewport.width);const text=extracted.text;
+       extracted.warnings.forEach(message=>layoutWarnings.add(message));
        characters+=text.length;if(characters>4_000_000)throw new Error('This document contains too much text. Split it into smaller materials.');pages.push({number:pageNumber,text});page.cleanup();
      }
      const empty=pages.filter(p=>!p.text.trim()).length;
      if(empty)warning=empty===pages.length?'This PDF contains no selectable text. You can view the original, but search and read-aloud need a PDF with a text layer.':'Some pages contain no selectable text. Images and scanned pages are available in the original PDF; they cannot be searched or read aloud.';
+     if(layoutWarnings.size)warning=[warning,...layoutWarnings].filter(Boolean).join(' ');
    }catch(error){if(error instanceof Error&&error.name==='PasswordException')throw new Error('This PDF is password protected. Upload an unlocked copy to read it here.');throw error;}finally{await task.destroy();}
  }else{
    let text='';

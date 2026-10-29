@@ -24,25 +24,29 @@ function SubjectIcon({ name, overall = false }: { name: string; overall?: boolea
   return <Icon size={17} strokeWidth={1.7} aria-hidden="true" />;
 }
 
-function useChartMotion(ref: RefObject<HTMLDivElement | null>, key: string) {
+export function useChartMotion(ref: RefObject<HTMLDivElement | null>, key: string) {
   useGSAP((_context, contextSafe) => {
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     const root = ref.current;
     if (!root) return;
+    const bars = Array.from(root.querySelectorAll<SVGGraphicsElement | HTMLElement>('.rc-grow-y'));
+    bars.forEach(bar => gsap.set(bar, { scaleY: 0, transformOrigin: bar.getAttribute('data-negative') === 'true' ? '50% 0%' : '50% 100%' }));
+    const horizontal = root.querySelectorAll('.rc-grow-x');
+    if (horizontal.length) gsap.set(horizontal, { scaleX: 0, transformOrigin: '0% 50%' });
+    const arcs = Array.from(root.querySelectorAll<SVGCircleElement>('.rc-pie-arc'));
+    arcs.forEach(arc => gsap.set(arc, { attr: { 'stroke-dasharray': `0 ${arc.dataset.total || '1'}` } }));
     let started = false;
     let observer: IntersectionObserver | null = null;
     const animate = contextSafe!(() => {
       if (started) return;
       started = true;
       observer?.disconnect();
-      const bars = Array.from(root.querySelectorAll<SVGGraphicsElement | HTMLElement>('.rc-grow-y'));
-      bars.forEach((bar, index) => gsap.fromTo(bar, { scaleY: 0 }, { scaleY: 1, duration: duration(.8), delay: index * .035, ease: 'expo.out', transformOrigin: bar.getAttribute('data-negative') === 'true' ? '50% 0%' : '50% 100%', clearProps: 'transform' }));
-      const horizontal = root.querySelectorAll('.rc-grow-x');
-      if (horizontal.length) gsap.fromTo(horizontal, { scaleX: 0 }, { scaleX: 1, duration: duration(.8), stagger: .035, ease: 'expo.out', transformOrigin: '0% 50%', clearProps: 'transform' });
-      Array.from(root.querySelectorAll<SVGCircleElement>('.rc-pie-arc')).forEach((arc, index) => {
+      bars.forEach((bar, index) => gsap.to(bar, { scaleY: 1, duration: duration(.8), delay: index * .035, ease: 'expo.out', clearProps: 'transform' }));
+      if (horizontal.length) gsap.to(horizontal, { scaleX: 1, duration: duration(.8), stagger: .035, ease: 'expo.out', clearProps: 'transform' });
+      arcs.forEach((arc, index) => {
         const total = arc.dataset.total || '1';
         const length = arc.dataset.length || '0';
-        gsap.fromTo(arc, { attr: { 'stroke-dasharray': `0 ${total}` } }, { attr: { 'stroke-dasharray': `${length} ${total}` }, duration: duration(.8), delay: index * .035, ease: 'expo.out' });
+        gsap.to(arc, { attr: { 'stroke-dasharray': `${length} ${total}` }, duration: duration(.8), delay: index * .035, ease: 'expo.out' });
       });
     });
     const bounds = root.getBoundingClientRect();
@@ -61,7 +65,7 @@ function Tooltip({ tip }: { tip: Tip | null }) {
   return tip ? <div className="rc-tooltip" role="tooltip" style={{ left: `${Math.min(82, Math.max(18, tip.x))}%`, top: `${Math.min(90, Math.max(18, tip.y))}%` }}><strong>{tip.title}</strong>{tip.lines.map((line, index) => <span key={index}><i style={{ background: line.color || ACCENT }} /><span>{line.label}</span><b>{line.value}</b></span>)}</div> : null;
 }
 
-function SubjectTabs({ subjects, value, onChange, children }: { subjects: AnalysisGroup[]; value: string | null; onChange: (subject: string | null) => void; children: ReactNode }) {
+export function SubjectTabs({ subjects, value, onChange, children }: { subjects: AnalysisGroup[]; value: string | null; onChange: (subject: string | null) => void; children: ReactNode }) {
   const id = useId();
   const content = useRef<HTMLDivElement>(null);
   useGSAP(() => { gsap.fromTo(content.current, { opacity: .35, y: 3 }, { opacity: 1, y: 0, duration: duration(.2), ease: 'power2.out', clearProps: 'opacity,transform' }); }, { scope: content, dependencies: [value], revertOnUpdate: true });
@@ -103,7 +107,7 @@ function GroupedBars({ groups, series, title, hidden = new Set(), max, unit = ''
           const x = center - fullWidth / 2 + seriesIndex * (barWidth + gap), barHeight = value / ceiling * height, y = top + height - barHeight;
           const show = () => setTip({ x: (x + barWidth / 2) / W * 100, y: Math.max(top + 50, y) / H * 100, title: group.label, lines: [{ label: item.label, value: `${num(value)}${unit || ' questions'}`, color: item.color }] });
           return <g key={item.key} tabIndex={0} role="img" aria-label={`${group.label}, ${item.label}: ${num(value)}${unit || ' questions'}`} className="rc-focus-mark" onFocus={show} onBlur={() => setTip(null)} onMouseEnter={show}><rect x={x - 4} y={top} width={barWidth + 8} height={height} fill="transparent" /><rect className="rc-grow-y rc-bar" x={x} y={y} width={barWidth} height={barHeight} rx={Math.min(4, barWidth / 5)} fill={item.color} /></g>;
-        })}<text x={center} y={H - bottom + 19} textAnchor="middle" className="rc-axis-label"><title>{group.label}</title>{short(group.label, compact ? 14 : Math.max(10, 30 - groups.length))}</text></g>;
+        })}<text x={center} y={H - bottom + 19} textAnchor="middle" className="rc-axis-label"><title>{group.label}</title>{short(group.label, compact ? groups.length > 4 ? 8 : 14 : Math.max(10, 30 - groups.length))}</text></g>;
       })}
     </svg>
     {!visible.length && <div className="rc-all-hidden">Select a legend item to show it.</div>}
@@ -139,7 +143,7 @@ function SubjectPie({ subjects }: { subjects: AnalysisGroup[] }) {
     const angle = (start + fraction / 2) * Math.PI * 2 - Math.PI / 2;
     const x = 180 + Math.cos(angle) * 73, y = 155 + Math.sin(angle) * 73;
     const show = () => setTip({ x: x / 360 * 100, y: y / 310 * 100, title: subject.name, lines: [{ label: 'Time spent', value: time(subject.timeSeconds), color: subjectColor(index) }, { label: 'Share of test time', value: percent(fraction * 100) }] });
-    return <g key={subject.name} tabIndex={0} role="img" aria-label={`${subject.name}: ${time(subject.timeSeconds)}, ${percent(fraction * 100)} of test time`} className="rc-focus-mark" onFocus={show} onBlur={() => setTip(null)} onMouseEnter={show}><circle className="rc-pie-arc" cx={180} cy={155} r={r} fill="none" stroke={subjectColor(index)} strokeWidth={r * 2} strokeDasharray={`${fraction * circumference} ${circumference}`} strokeDashoffset={-start * circumference} transform="rotate(-90 180 155)" data-length={fraction * circumference} data-total={circumference} />{fraction >= .055 && <text x={x} y={y + 4} textAnchor="middle" className="rc-pie-label">{percent(fraction * 100)}</text>}</g>;
+    return <g key={subject.name} tabIndex={0} role="img" aria-label={`${subject.name}: ${time(subject.timeSeconds)}, ${percent(fraction * 100)} of test time`} className="rc-focus-mark" onFocus={show} onBlur={() => setTip(null)} onMouseEnter={show}><circle className="rc-pie-arc" cx={180} cy={155} r={r} fill="none" stroke={subjectColor(index)} strokeWidth={r * 2} strokeDasharray={`${fraction * circumference} ${circumference}`} strokeDashoffset={-start * circumference} style={{ '--rc-final-dash': `${fraction * circumference} ${circumference}` } as CSSProperties} transform="rotate(-90 180 155)" data-length={fraction * circumference} data-total={circumference} />{fraction >= .055 && <text x={x} y={y + 4} textAnchor="middle" className="rc-pie-label">{percent(fraction * 100)}</text>}</g>;
   }) : <g><circle cx={180} cy={155} r={101} fill="#F4F1FA" /><text x={180} y={153} textAnchor="middle" className="rc-empty-label">No time recorded</text><text x={180} y={173} textAnchor="middle" className="rc-axis-label">0 sec</text></g>}</svg><Tooltip tip={tip} /></div>;
 }
 
@@ -155,6 +159,11 @@ function SubjectColumns({ subjects, metric, title }: { subjects: AnalysisGroup[]
 
 export function SubjectTimeCharts({ analysis }: { analysis: Analysis }) {
   return <div className="rc-subject-chart-grid"><section><h3>Subject-wise Time Spent</h3><div className="rc-chart-card"><SubjectLegend subjects={analysis.subjects} value={subject => subject.timeSeconds} unit="time" /><SubjectPie subjects={analysis.subjects} /></div></section><section><h3>Subject-wise Questions Attempted</h3><div className="rc-chart-card"><SubjectLegend subjects={analysis.subjects} value={subject => subject.attempted} unit="count" /><SubjectColumns subjects={analysis.subjects} metric="attempted" title="Number of questions attempted by subject" /></div></section><section><h3>Subject-wise Accuracy</h3><div className="rc-chart-card"><SubjectLegend subjects={analysis.subjects} value={subject => subject.accuracy} unit="percent" /><SubjectColumns subjects={analysis.subjects} metric="accuracy" title="Percentage of attempted questions answered correctly by subject" /></div></section></div>;
+}
+
+export function AttemptEfficiencyCharts({ analysis }: { analysis: Analysis }) {
+  const values = analysis.efficiency;
+  return <div className="rc-attempt-charts"><section><h3>Questions by attempt quality</h3><div className="rc-chart-card"><GroupedBars compact title="Recorded question counts by attempt efficiency category" groups={values.map(row => ({ label: row.label, values: { count: row.questions } }))} series={[{ key: 'count', label: 'Questions', color: ACCENT }]} /></div></section><section><h3>Time spent by attempt quality</h3><div className="rc-chart-card"><GroupedBars compact title="Recorded minutes by attempt efficiency category" groups={values.map(row => ({ label: row.label, values: { minutes: row.seconds / 60 } }))} series={[{ key: 'minutes', label: 'Recorded time', color: '#0788FF' }]} unit=" min" /></div></section></div>;
 }
 
 export function TimeQualityChart({ analysis }: { analysis: Analysis }) {

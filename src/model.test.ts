@@ -1,5 +1,5 @@
 import { describe,it,expect } from 'vitest';
-import { parseTask,createEmptyState,day,reviewResult,linkedTask,migrateStoredState,rollUpMastery } from './model';
+import { parseTask,createEmptyState,day,reviewResult,linkedTask,migrateStoredState,rollUpMastery,validateWorkspaceState } from './model';
 import type { Mistake,Subject } from './model';
 // Fixtures are used only by the test runner; the application starts empty.
 const subjects:Subject[]=[{id:'physics-user',name:'Physics',color:'orange'}];
@@ -18,4 +18,19 @@ describe('real-data workspace',()=>{
 describe('connected study workflows',()=>{
  it('schedules each recall result and increments attempts',()=>{const m:Mistake={id:'user-mistake',title:'My error',subject:'physics-user',topic:'My topic',category:'Conceptual gap',prompt:'My question',wrong:'My approach',solution:'My reasoning',takeaway:'My takeaway',difficulty:3,status:'Needs review',review:day(),attempts:0};expect(reviewResult(m,'failed').review).toBe(day(1));expect(reviewResult(m,'effort').review).toBe(day(3));expect(reviewResult(m,'mastered')).toMatchObject({review:day(14),status:'Mastered',attempts:1});});
  it('retains source identity on follow-up tasks',()=>{expect(linkedTask('Study notes','physics-user','resource','user-note')).toMatchObject({link:{type:'resource',id:'user-note'},due:day(),done:false});});
+});
+
+
+describe('mistake self-rated mastery persistence',()=>{
+ const mistake:Mistake={id:'saved-mistake',title:'Saved question',subject:'s',topic:'',category:'Conceptual gap',prompt:'Question',wrong:'',solution:'Reasoning',takeaway:'',difficulty:4,status:'Needs review',review:day(),attempts:0};
+ it('keeps an explicit mastery rating separate from difficulty through backup and recall',()=>{
+  const state={...createEmptyState(),mistakes:[{...mistake,mastery:2}]};
+  const restored=validateWorkspaceState(JSON.parse(JSON.stringify(state)));
+  expect(restored.mistakes[0]).toMatchObject({mastery:2,difficulty:4});
+  expect(reviewResult(restored.mistakes[0],'mastered')).toMatchObject({mastery:2,difficulty:4,status:'Mastered'});
+  expect(validateWorkspaceState({...createEmptyState(),mistakes:[mistake]}).mistakes[0].mastery).toBeUndefined();
+ });
+ it('rejects corrupted mastery values rather than displaying a false rating',()=>{
+  for(const mastery of [0,6,2.5,'5',null])expect(()=>validateWorkspaceState({...createEmptyState(),mistakes:[{...mistake,mastery}]})).toThrow('mastery');
+ });
 });

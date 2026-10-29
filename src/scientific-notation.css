@@ -1,0 +1,4 @@
+.markdown .katex { text-indent: 0; overflow-wrap: normal; word-break: normal; }
+.markdown .katex-display { max-width: 100%; overflow-x: auto; overflow-y: hidden; padding: .3em 0; margin: 1em 0; }
+.markdown .katex-display > .katex { white-space: nowrap; }
+.markdown .katex-error { color: inherit !important; font-family: var(--font-mono, monospace); white-space: pre-wrap; overflow-wrap: anywhere; }
