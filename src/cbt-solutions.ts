@@ -1,5 +1,6 @@
 import { parseMinimal } from '@unified-latex/unified-latex-util-parse';
 import { latexToStudyText } from './cbt-import';
+import { protectCbtMathML } from './cbt-mathml';
 
 export type CbtSolution = { sourceNumber: string; key?: string; explanation: string };
 type Node = ReturnType<typeof parseMinimal>['content'][number];
@@ -9,7 +10,7 @@ const stop = /^(?:self[ -]*analysis|revision\s+rules?|your\s+revision|marking\s+
 
 /** Reads only explicitly labelled supplied solutions. It never creates an answer. */
 export function parseCbtSolutions(input: string, format: 'text' | 'latex' = 'text'): CbtSolution[] {
-  input = input.replace(/\r\n?/g, '\n');
+  const mathml = protectCbtMathML(input.replace(/\r\n?/g, '\n'), { latexComments: format === 'latex' }); input = mathml.source;
   // Some generated .tex files contain a literal TAB where a producer escaped
   // the leading \t in \textbf. Recover only explicit Answer/Ans/Key headers.
   if (format === 'latex') input = input.replace(/\textbf\{(?=(?:Answer|Ans\.?|Key)\b)/gi, '\\textbf{');
@@ -78,5 +79,5 @@ export function parseCbtSolutions(input: string, format: 'text' | 'latex' = 'tex
     add((header || numberOnly)![1], [header?.[2] || '', ...lines.slice(i+1,j)].join('\n'));
     i = j - 1;
   }
-  return result.slice(0, 1000);
+  return result.slice(0, 1000).map(solution => ({ ...solution, explanation: mathml.restore(solution.explanation) }));
 }

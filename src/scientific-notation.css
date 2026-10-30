@@ -1,4 +1,13 @@
-.markdown .katex { text-indent: 0; overflow-wrap: normal; word-break: normal; }
-.markdown .katex-display { max-width: 100%; overflow-x: auto; overflow-y: hidden; padding: .3em 0; margin: 1em 0; }
-.markdown .katex-display > .katex { white-space: nowrap; }
-.markdown .katex-error { color: inherit !important; font-family: var(--font-mono, monospace); white-space: pre-wrap; overflow-wrap: anywhere; }
+.scientific-math { position: relative; text-indent: 0; color: inherit; overflow-wrap: normal; word-break: normal; }
+.markdown:has(.scientific-math) { min-width: 0; max-width: 100%; overflow-x: auto; }
+.scientific-math.math-inline { display: inline; }
+.scientific-math.math-block { display: block; max-width: 100%; overflow-x: auto; overflow-y: hidden; padding: .4em 0; margin: 1em 0; }
+.scientific-math .math-visual { display: inline-block; max-width: none; }
+.scientific-math mjx-container { display: inline-block; direction: ltr; white-space: nowrap; text-align: initial; margin: 0; }
+.scientific-math.math-block mjx-container { display: block; padding: .1em 0; }
+.markdown .scientific-math .math-visual svg { display: inline-block; max-width: none !important; min-width: 1px; min-height: 1px; flex: none; overflow: visible; color: inherit; }
+.markdown .scientific-math .math-visual svg * { pointer-events: none; }
+.scientific-math .math-assistive { position: absolute !important; width: 1px !important; height: 1px !important; overflow: hidden !important; clip-path: inset(50%); white-space: nowrap; padding: 0; border: 0; }
+.markdown .scientific-math .math-source { color: inherit; font: inherit; font-family: var(--font-mono, monospace); white-space: pre-wrap; overflow-wrap: anywhere; border-radius: 3px; padding: 0 .15em; background: var(--surface-soft, transparent); }
+.scientific-math .math-error-note { display: block; font-size: .75em; line-height: 1.5; opacity: .8; margin-top: .3em; white-space: normal; }
+@media print { .scientific-math { color: #000 !important; } .scientific-math.math-block { overflow: visible; break-inside: avoid; } }

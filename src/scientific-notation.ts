@@ -48,7 +48,16 @@ function closingCodeRun(source: string, delimiter: string, from: number): number
 
 /** Display-only conversion of explicitly marked notation. It never guesses a
  * formula from ordinary words/numbers, executes TeX, or modifies stored text. */
-export function normalizeScientificMarkdown(source: string): string {
+export function normalizeScientificMarkdown(source: string): string { return processScientificMarkdown(source, false).source; }
+
+export type ScientificMarkdownSource = { source: string; mathML: ReadonlyMap<string, string> };
+/** MathML is held out of the Markdown/HTML parser, including its dollar signs,
+ * TeX annotations and line breaks. Only the dedicated validator handles it. */
+export function prepareScientificMarkdown(source: string): ScientificMarkdownSource { return processScientificMarkdown(source, true); }
+function processScientificMarkdown(source: string, shieldMathML: boolean): ScientificMarkdownSource {
+  const mathML = new Map<string, string>();
+  let mathMLPrefix = 'VDMML';
+  while (source.includes(mathMLPrefix)) mathMLPrefix += 'X';
   let output = '';
   let index = 0;
   while (index < source.length) {
@@ -73,7 +82,10 @@ export function normalizeScientificMarkdown(source: string): string {
       const delimiter = source[index + 1] === '$' ? '$$' : '$';
       const end = closingDelimiter(source, delimiter, index + delimiter.length);
       if (end !== -1) {
-        output += delimiter + replaceMathTextScripts(source.slice(index + delimiter.length, end)) + delimiter;
+        const body = replaceMathTextScripts(source.slice(index + delimiter.length, end));
+        // remark-math needs line-separated display delimiters; a same-line $$
+        // pair otherwise becomes inline math and can overflow a narrow card.
+        output += delimiter === '$$' ? `\n\n$$\n${body.trim()}\n$$\n\n` : `$${body}$`;
         index = end + delimiter.length; continue;
       }
     }
@@ -95,7 +107,7 @@ export function normalizeScientificMarkdown(source: string): string {
           else {
             const kind = command[1] === 'textsubscript' ? 'sub' : 'sup';
             const unicode = toUnicodeScript(group.body, kind);
-            // KaTeX renders explicit text scripts that have no Unicode glyph.
+            // The math renderer handles scripts that have no Unicode glyph.
             output += unicode ?? `$${kind === 'sub' ? '_' : '^'}{\\text{${group.body}}}$`;
           }
           index = group.end; continue;
@@ -103,6 +115,19 @@ export function normalizeScientificMarkdown(source: string): string {
       }
     }
     if (source[index] === '<') {
+      const mathTag = /^<(?:[a-zA-Z][\w.-]*:)?math(?=[\s/>])[^>]*>/i.exec(source.slice(index));
+      if (mathTag) {
+        const close = /<\/(?:[a-zA-Z][\w.-]*:)?math\s*>/gi;
+        close.lastIndex = index + mathTag[0].length;
+        const closing = close.exec(source);
+        const end = /\/\s*>$/.test(mathTag[0]) ? index + mathTag[0].length : closing ? closing.index + closing[0].length : -1;
+        if (end !== -1) {
+          const fragment = source.slice(index, end);
+          if (shieldMathML) { const token = `${mathMLPrefix}${mathML.size}`; mathML.set(token, fragment); output += `$${token}$`; }
+          else output += fragment;
+          index = end; continue;
+        }
+      }
       const tag = /^<(sub|sup)>([^<>\n]*)<\/\1>/i.exec(source.slice(index));
       if (tag) {
         const unicode = toUnicodeScript(tag[2], tag[1].toLowerCase() as 'sub' | 'sup');
@@ -111,5 +136,5 @@ export function normalizeScientificMarkdown(source: string): string {
     }
     output += source[index++];
   }
-  return output;
+  return { source: output, mathML };
 }

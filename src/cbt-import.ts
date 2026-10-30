@@ -1,6 +1,7 @@
 import type { Difficulty, TestQuestion } from './testing-model';
 import { parseLatexStructure } from './latex-ast';
 import type { LatexAstQuestion, LatexSourceMetadata } from './latex-ast';
+import { protectCbtMathML } from './cbt-mathml';
 
 export type CbtImportDefaults = { subject: string; marks: number; negativeMarks: number; idealSeconds: number; difficulty: Difficulty };
 export type CbtDraftQuestion = TestQuestion & { sourceNumber: string; sourcePage?: number; sourceOptionLabels?: string[]; sourceMetadata?: LatexSourceMetadata };
@@ -182,7 +183,7 @@ export function isCbtInstructionBlock(source: string, underInstructions = false)
 }
 
 export function parseCbtText(input: string, options: Partial<CbtImportDefaults> = {}): CbtParseResult {
-  const source = safeSource(input), config = { ...defaults, ...options }, { body, keys, conflicts, warnings } = answerKey(source);
+  const mathml = protectCbtMathML(safeSource(input)), source = mathml.source, config = { ...defaults, ...options }, { body, keys, conflicts, warnings } = answerKey(source);
   const markers = [...body.matchAll(/^[ \t]*(?:(?:Q(?:uestion)?\.?[ \t]*)(\d+)[ \t]*[).:：\-]?[ \t]+|(\d+)[ \t]*[).:：\-][ \t]+)(.*)$/gim)]
     .filter(match => !/^[ \t]*Q\.?[ \t]+\d+[ \t]+/i.test(match[0]));
   if (!markers.length) return { questions: [], warnings: [...warnings, 'No numbered questions were recognized. Add clear question numbers and option labels in the extracted text, then parse again.'] };
@@ -202,7 +203,7 @@ export function parseCbtText(input: string, options: Partial<CbtImportDefaults> 
   if (questions.length > 1000) throw new Error('A paper may contain at most 1,000 questions. Split this source.');
   if (new Set(questions.map(question => question.sourceNumber)).size !== questions.length) warnings.push('Question numbers repeat in this source. Check section boundaries and answer-key mapping carefully.');
   if ([...keys.keys()].some(number => !questions.some(question => normalizeNumber(question.sourceNumber) === number))) warnings.push('Some answer-key entries do not match a recognized question number.');
-  return { questions, warnings };
+  return { questions: questions.map(question => ({ ...question, prompt: mathml.restore(question.prompt), options: question.options.map(mathml.restore), explanation: mathml.restore(question.explanation) })), warnings };
 }
 
 function stripComments(source: string) {
@@ -272,7 +273,7 @@ function convertTables(input: string, warnings: string[]): { source: string; ret
 }
 /** Converts presentation syntax only; TeX is never compiled, expanded, or allowed to fetch referenced files. */
 export function latexToStudyText(input: string, warnings: string[] = []): string {
-  const tables = convertTables(input, warnings);
+  const mathml = protectCbtMathML(input, { latexComments: true }), tables = convertTables(mathml.source, warnings);
   let source = tables.source.replace(/\\\[([\s\S]*?)\\\]/g, (_, math: string) => '$$\n' + math + '\n$$').replace(/\\\(([\s\S]*?)\\\)/g, (_, math: string) => '$' + math + '$');
   source = source.replace(/\\begin\{equation\*?\}([\s\S]*?)\\end\{equation\*?\}/g, (_, math: string) => '$$\n' + math + '\n$$');
   source = source.replace(/\\begin\{(align\*?)\}([\s\S]*?)\\end\{\1\}/g, (_, _environment: string, math: string) => '$$\n\\begin{aligned}\n' + math + '\n\\end{aligned}\n$$');
@@ -289,7 +290,7 @@ export function latexToStudyText(input: string, warnings: string[] = []): string
     return text.replace(/\\(?:par|newline)\b/g, '\n\n').replace(/\\\\(?:\[[^\]]*\])?/g, '\n').replace(/\\(?:noindent|smallskip|medskip|bigskip|tiny|scriptsize|footnotesize|small|normalsize|large|Large|LARGE)\b/g, '').replace(/\\([%&#_])/g, '$1').replace(/~/g, ' ').replace(/\\(?:begin|end)\{(?:questions|parts|document|center)\}/g, '');
   }).join('').trim();
   for (const [token, table] of tables.retained) { const longest = Math.max(0, ...[...table.matchAll(/`+/g)].map(match => match[0].length)), fence = '`'.repeat(Math.max(3, longest + 1)); rendered = rendered.replace(token, '\n\n' + fence + 'tex\n' + table + '\n' + fence + '\n\n'); }
-  return rendered.trim();
+  return mathml.restore(rendered.trim());
 }
 function environment(source: string, name: string): { start: number; end: number; inner: string } | null {
   const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -338,7 +339,7 @@ function latexBlock(raw: string, number: string, config: CbtImportDefaults, key?
   return parsed;
 }
 export function parseCbtLatex(input: string, options: Partial<CbtImportDefaults> = {}): CbtParseResult {
-  const source = safeSource(input), warnings: string[] = [], config = { ...defaults, ...options };
+  const mathml = protectCbtMathML(safeSource(input), { latexComments: true }), source = mathml.source, warnings: string[] = [], config = { ...defaults, ...options };
   const uncommented = stripComments(source);
   if ([...uncommented.matchAll(/\\begin\{questionblock\}/g)].length !== [...uncommented.matchAll(/\\end\{questionblock\}/g)].length) return { questions: [], warnings: ['Some questionblock containers are incomplete. Repair the source before importing its questions.'] };
   if (/\\(?:input|include|includegraphics|write18|openout|openin|read|href|url)\b/.test(source)) warnings.push('External files, images, links, and executable LaTeX commands are not loaded or executed. Add any missing image content manually.');
@@ -363,7 +364,7 @@ export function parseCbtLatex(input: string, options: Partial<CbtImportDefaults>
     }
   }
   if (new Set(questions.map(question => normalizeNumber(question.sourceNumber))).size !== questions.length) warnings.push('Question numbers repeat in this source. Check section boundaries and answer-key mapping carefully.');
-  return { questions, warnings: [...new Set([...warnings, ...key.warnings])], ...(structure.embeddedSource ? { embeddedSource: structure.embeddedSource } : {}) };
+  return { questions: questions.map(question => ({ ...question, prompt: mathml.restore(question.prompt), options: question.options.map(mathml.restore), explanation: mathml.restore(question.explanation), ...(question.sourceMetadata ? { sourceMetadata: Object.fromEntries(Object.entries(question.sourceMetadata).map(([key, value]) => [key, mathml.restore(value)])) } : {}) })), warnings: [...new Set([...warnings, ...key.warnings])], ...(structure.embeddedSource ? { embeddedSource: mathml.restore(structure.embeddedSource) } : {}) };
 }
 
 export function getCbtQuestionIssues(question: TestQuestion): string[] {

@@ -1,4 +1,5 @@
 import { parseMinimal } from '@unified-latex/unified-latex-util-parse';
+import { protectCbtMathML } from './cbt-mathml';
 
 export type LatexSourceMetadata = { competency?: string; difficulty?: string; source?: string };
 export type LatexAstQuestion = { sourceNumber: string; source: string; options?: string[]; labels?: string[]; correctLabels?: string[]; multiple?: boolean; metadata?: LatexSourceMetadata };
@@ -17,7 +18,8 @@ const isEnv = (node: Node): node is Env => node.type === 'environment' && typeof
 const stopTitle = /^(?:(?:section\s*[-:–—]?\s*[cd])\b|answer\s*key\b|self[\s-]*analysis\b|(?:detailed\s+)?solutions?\b)/i;
 
 /** Only syntax is parsed. No macro is expanded, TeX is never executed, and no referenced file is opened. */
-export function parseLatexStructure(source: string): LatexAstResult {
+export function parseLatexStructure(input: string): LatexAstResult {
+  const mathml = protectCbtMathML(input, { latexComments: true }), source = mathml.source;
   const tree = parseMinimal(source), warnings: string[] = [], questions: LatexAstQuestion[] = [];
   let stopAt: number | undefined, nodesSeen = 0;
   const raw = (node: Node) => source.slice(start(node), end(node));
@@ -177,5 +179,5 @@ export function parseLatexStructure(source: string): LatexAstResult {
     lead += render([node]);
   }
   const questionSource = stopAt === undefined ? source : source.slice(0, stopAt);
-  return { questions, questionSource, ...(stopAt === undefined ? {} : { embeddedSource: source.slice(stopAt) }), warnings: [...new Set(warnings)] };
+  return { questions: questions.map(question => ({ ...question, source: mathml.restore(question.source), ...(question.options ? { options: question.options.map(mathml.restore) } : {}), ...(question.metadata ? { metadata: Object.fromEntries(Object.entries(question.metadata).map(([key, value]) => [key, mathml.restore(value)])) } : {}) })), questionSource: mathml.restore(questionSource), ...(stopAt === undefined ? {} : { embeddedSource: mathml.restore(source.slice(stopAt)) }), warnings: [...new Set(warnings)] };
 }

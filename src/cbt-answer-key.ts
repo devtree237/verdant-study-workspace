@@ -1,5 +1,6 @@
 import type { CbtDraftQuestion } from './cbt-import';
 import { parseCbtSolutions } from './cbt-solutions';
+import { protectCbtMathML } from './cbt-mathml';
 
 export type CbtAnswer = { kind: 'choice'; labels: string[] } | { kind: 'numeric'; value: number; tolerance: number };
 export type CbtAnswerKeyEntry = { sourceNumber: string; answer?: CbtAnswer; conflict?: boolean; issue?: string; explanation?: string; solutionConflict?: boolean };
@@ -111,7 +112,7 @@ function texSplit(source: string, rows: boolean): string[] {
  * two-argument shorthand \answer{question number}{key}. TeX is never executed. */
 export function parseCbtAnswerKey(input: string, format: 'text' | 'latex' = 'text'): CbtAnswerKeyParse {
   if (input.length > MAX_SOURCE) throw new Error('The answer-key source is too large. Keep it below 4 million characters.');
-  let source = input.replace(/\r\n?/g, '\n').replace(/\u0000/g, '').replace(/\u00a0/g, ' ');
+  let source = protectCbtMathML(input.replace(/\r\n?/g, '\n').replace(/\u0000/g, '').replace(/\u00a0/g, ' '), { latexComments: format === 'latex' }).source;
   if (format === 'latex') source = stripComments(source);
   const entries = new Map<string, CbtAnswerKeyEntry>(), warnings = new Set<string>(); let candidates = 0;
   if (format === 'latex' && /\textbf\{(?:Answer|Ans\.?|Key)\b/i.test(input)) warnings.add('A malformed TAB + extbf answer heading was recovered as a literal supplied answer. Verify these solution headings against the source.');

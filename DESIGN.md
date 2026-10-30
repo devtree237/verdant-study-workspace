@@ -120,3 +120,20 @@ The user's Time Analysis screenshot locks the subject-tabbed Time Breakdown, out
 The attached Mistake Book brief owns the page's dark treatment: #09090E canvas with restrained violet ambience, #111118 glass cards, #0B0B10 recessed recall chamber, fine inset highlights, one white header CTA, compact bento metrics, segmented category proportions, searchable two-column question cards and framed photos. Preserve the light appearance and actual study actions. Self-rated mastery is optional and separate from existing difficulty; historical records start unrated. Search owns Ctrl/Cmd+K only while this page is mounted.
 
 The shredder needs a visible sequence: soft entrance, brief saved-card hold, controlled paper feed, falling strips and a fade exit. Decoration must never delay task completion or History persistence. The user's supplied visual references plus Refero's bundled motion guidance anchor this update; live Refero research is unavailable because its subscription is inactive.
+
+## MathJax and MathML integration — 29 October 2026
+
+The user's explicit request replaces the shared KaTeX presentation layer with MathJax4 and adds Presentation MathML. Preserve Verdant's existing app layout, theme colors, CBT answer semantics and animations. Mathematical glyphs use bundled MathJax SVG font data; expressions inherit the surrounding theme and keep natural dimensions inside answer buttons. Wide display equations scroll within their own area.
+
+Render formulas in isolated virtual documents rather than rewriting React-owned question markup. Load the local engine only when needed, cache bounded results, and discard stale asynchronous responses when content changes. Keep original notation visible during loading or errors. Provide one assistive MathML representation beside a decorative, non-focusable SVG without adding nested controls to answer options. Preserve literal code and reject executable XML/HTML, arbitrary external loads and unsafe attributes.
+
+MathML fragments remain opaque while importing real numbered questions, answer keys and supplied solutions. A standalone equation file is a source snippet to place in an authored question, never an inferred complete assessment. The existing mandatory review, question groups, marking scheme and grading remain authoritative. References: MathJax official direct-module, MathML and safe-extension documentation; no visual redesign is introduced.
+
+
+## CBT MathJax and MathML source preservation — 29 October 2026
+
+Extend the existing CBT question, option, explanation and solution surfaces through the shared math renderer. Keep the established violet/plum/light and dark tokens and existing question layout. Math rendering is presentation only: canonical option indices, numerical keys/tolerances, fixed paper scoring and immutable result snapshots remain authoritative.
+
+The importer treats complete `<math>` fragments as opaque source before TeX AST traversal, comment cleanup and numbered text/key/solution scanning. Presentation markup, text annotations, percent signs and chemistry commands inside those fragments must survive without creating a question, option or key. Restore the original fragments for editable review and shared preview. Standalone `.mml`/`.mathml` files are explicitly equation snippets; they do not supply a CBT schema or justify invented stems/answers. General XML/HTML file import stays unavailable.
+
+The renderer’s bounded MathML sanitizer owns allowed mathematical markup and attributes. Keep XML directives, external entities, HTML, event handlers, remote resources and executable content out of the render path. Mandatory review and missing-key gates remain in place. Use clear file/field labels to distinguish source import from mathematical display; do not hide renderer implementation controls in the test-taking flow.
