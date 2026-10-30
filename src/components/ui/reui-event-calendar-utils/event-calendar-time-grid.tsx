@@ -907,6 +907,19 @@ function EventCalendarTimeGutter({
  */
 const EVENT_TRACK_WIDTH = "(100% - var(--ec-event-gutter, 0.75rem))"
 
+/** Solid hours, softer half hours and faint quarter-hour scheduling slots.
+ * Explicit fallbacks keep the grid visible when utility color tokens are not
+ * emitted as runtime variables by a consuming application. */
+const EVENT_CALENDAR_TIME_GRID_BACKGROUND = {
+  backgroundImage: [
+    "linear-gradient(to bottom, var(--ec-hour-line, var(--control-border, #d9dce3)) 1px, transparent 1px)",
+    "linear-gradient(to bottom, var(--ec-half-hour-line, color-mix(in srgb, var(--control-border, #d9dce3) 65%, transparent)) 1px, transparent 1px)",
+    "linear-gradient(to bottom, var(--ec-quarter-hour-line, color-mix(in srgb, var(--control-border, #d9dce3) 32%, transparent)) 1px, transparent 1px)",
+  ].join(", "),
+  backgroundSize: "100% var(--ec-hour-height), 100% calc(var(--ec-hour-height) / 2), 100% calc(var(--ec-hour-height) / 4)",
+  backgroundRepeat: "repeat-y",
+} satisfies CSSProperties
+
 /** Absolute overlay block positioned by minutes (ghosts + drafts). */
 function minuteBlockStyle(
   startMin: number,
@@ -1095,6 +1108,7 @@ function EventCalendarDayColumn({
       data-ec-day={dayStart.getTime()}
       data-ec-bounds-start={boundsStartMin}
       data-ec-bounds-end={boundsEndMin}
+      data-drop-target={dragGhost ? (dragGhost.valid ? "valid" : "invalid") : undefined}
       role="group"
       aria-label={format(
         toZoned(day, timeZone),
@@ -1112,7 +1126,7 @@ function EventCalendarDayColumn({
       )}
       style={{
         height: `calc(var(--ec-hour-height) * ${boundsMinutes / 60})`,
-        backgroundImage: `repeating-linear-gradient(to bottom, transparent, transparent calc(var(--ec-hour-height) * ${interval / 60} - var(--ec-slot-line-width, 1px)), var(--ec-slot-line-color, var(--color-border)) calc(var(--ec-hour-height) * ${interval / 60} - var(--ec-slot-line-width, 1px)), var(--ec-slot-line-color, var(--color-border)) calc(var(--ec-hour-height) * ${interval / 60}))`,
+        ...EVENT_CALENDAR_TIME_GRID_BACKGROUND,
       }}
       onPointerDown={(e) => {
         if (e.target === e.currentTarget) gestures.beginCreate(e, day, false)
@@ -1212,6 +1226,7 @@ function EventCalendarDayColumn({
             } as CSSProperties
           }
         >
+          {dragGhost.kind === "move" && <span data-slot="event-calendar-drop-time" className="block truncate px-1 py-0.5 text-[10px] font-medium">{settings.i18n.functions.formatEventTime(toZoned(dragGhost.proposedStart, timeZone), toZoned(dragGhost.proposedEnd, timeZone), false, { locale: settings.locale })}</span>}
           {dragGhost.kind !== "move" && (
             <EventCalendarEvent
               preview
@@ -1360,6 +1375,7 @@ function EventCalendarDaysView(props: TimeGridViewProps) {
 }
 
 export {
+  EVENT_CALENDAR_TIME_GRID_BACKGROUND,
   EVENT_TRACK_WIDTH,
   EventCalendarDayView,
   EventCalendarDaysView,

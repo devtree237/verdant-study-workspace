@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { PERSONAL_CALENDAR_RESOURCE, calendarDayKey, calendarUpdateToTask, parseCalendarDay, taskToCalendarEvent } from './task-calendar';
+import { PERSONAL_CALENDAR_RESOURCE, calendarDayKey, calendarUpdateToTask, parseCalendarDay, taskToCalendarEvent, taskToCalendarDragEvent } from './task-calendar';
 import type { Subject, Task } from './model';
 const subjects:Subject[]=[{id:'physics',name:'Physics',color:'blue'},{id:'chemistry',name:'Chemistry',color:'green'}];
 const task=(patch:Partial<Task>={}):Task=>({id:'actual-task',title:'Authored study task',subject:'physics',priority:2,due:'2026-10-27',duration:25,labels:[],stage:'To study',done:false,notes:'',subtasks:[],...patch});
@@ -7,7 +7,7 @@ const at=(hour:number,minute=0)=>new Date(2026,9,27,hour,minute);
 describe('real task calendar mapping',()=>{
  it('shows untimed tasks on their actual due day without treating planned time as a full-day duration',()=>{
   const source=task(),event=taskToCalendarEvent(source,subjects)!;
-  expect(calendarDayKey(event.start)).toBe('2026-10-27');expect(calendarDayKey(event.end)).toBe('2026-10-28');expect(event.allDay).toBe(true);expect(event.data).toBe(source);expect(source.duration).toBe(25);
+  expect(calendarDayKey(event.start)).toBe('2026-10-27');expect(calendarDayKey(event.end)).toBe('2026-10-28');expect(event.allDay).toBe(true);expect(event.timedDurationMinutes).toBe(25);expect(event.data).toBe(source);expect(source.duration).toBe(25);
  });
  it('uses actual local start time, planned duration and existing subject identity',()=>{
   const event=taskToCalendarEvent(task({time:'09:30'}),subjects)!;
@@ -25,6 +25,17 @@ describe('real task calendar mapping',()=>{
  });
 });
 describe('calendar scheduling changes',()=>{
+ it('prepares an undated saved task for dragging without committing a date or creating another task',()=>{
+  const source=task({due:'',time:''}),preview=taskToCalendarDragEvent(source,subjects,at(9))!;
+  expect(preview.id).toBe(source.id);expect(preview.data).toBe(source);expect(preview.timedDurationMinutes).toBe(25);expect(calendarDayKey(preview.start)).toBe('2026-10-27');expect(source.due).toBe('');expect(source.time).toBe('');
+ });
+ it('does not make draggable previews for completed, invalid or excessive plans',()=>{
+  expect(taskToCalendarDragEvent(task({done:true}),subjects,at(9))).toBeNull();expect(taskToCalendarDragEvent(task({duration:481}),subjects,at(9))).toBeNull();expect(taskToCalendarDragEvent(task(),subjects,new Date(NaN))).toBeNull();
+ });
+ it('resizes the beginning while retaining the supplied end and unrelated task fields',()=>{
+  const source=task({time:'09:30',duration:60,notes:'Keep this note',stage:'Practicing'}),patch=calendarUpdateToTask(source,{start:at(9),end:at(10,30),allDay:false,source:'resize-start'},['physics']);
+  expect({...source,...patch}).toMatchObject({id:source.id,time:'09:00',duration:90,notes:'Keep this note',stage:'Practicing',subject:'physics'});expect(source.time).toBe('09:30');
+ });
  it('moves an untimed task onto the clock using its own planned duration',()=>{
   const patch=calendarUpdateToTask(task(),{start:at(10),end:new Date(at(10).getTime()+86400000),allDay:false,source:'drag'},subjects.map(subject=>subject.id));expect(patch).toEqual({due:'2026-10-27',time:'10:00',duration:25,subject:'physics'});
  });

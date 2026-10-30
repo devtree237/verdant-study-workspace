@@ -35,6 +35,7 @@ import {
   zonedStartOfDay,
 } from "./event-calendar-lib"
 import {
+  EVENT_CALENDAR_TIME_GRID_BACKGROUND,
   EVENT_TRACK_WIDTH,
   EventCalendarNowIndicator,
   EventCalendarTimeGutter,
@@ -644,7 +645,7 @@ function EventCalendarResourceColumn({
       )}
       style={{
         height: `calc(var(--ec-hour-height) * ${boundsMinutes / 60})`,
-        backgroundImage: `repeating-linear-gradient(to bottom, transparent, transparent calc(var(--ec-hour-height) * ${interval / 60} - var(--ec-slot-line-width, 1px)), var(--ec-slot-line-color, var(--color-border)) calc(var(--ec-hour-height) * ${interval / 60} - var(--ec-slot-line-width, 1px)), var(--ec-slot-line-color, var(--color-border)) calc(var(--ec-hour-height) * ${interval / 60}))`,
+        ...EVENT_CALENDAR_TIME_GRID_BACKGROUND,
       }}
       onPointerDown={(e) => {
         if (e.target === e.currentTarget) gestures.beginCreate(e, day, false)
@@ -751,6 +752,7 @@ function EventCalendarResourceColumn({
             } as CSSProperties
           }
         >
+          {dragGhost.kind === "move" && <span data-slot="event-calendar-drop-time" className="block truncate px-1 py-0.5 text-[10px] font-medium">{settings.i18n.functions.formatEventTime(toZoned(dragGhost.proposedStart, settings.timeZone), toZoned(dragGhost.proposedEnd, settings.timeZone), false, { locale: settings.locale })}</span>}
           {dragGhost.kind !== "move" && (
             <EventCalendarEvent
               preview

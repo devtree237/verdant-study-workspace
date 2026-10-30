@@ -14,7 +14,13 @@ export function taskToCalendarEvent(task:Task,subjects:Subject[]):CalendarEvent<
  if(!allDay){const match=/^(\d{2}):(\d{2})$/.exec(task.time!);if(!match||Number(match[1])>23||Number(match[2])>59)return null;start.setHours(Number(match[1]),Number(match[2]),0,0);}
  const end=new Date(allDay?start:start.getTime()+task.duration*60_000);if(allDay)end.setDate(end.getDate()+1);
  const subject=subjects.find(subject=>subject.id===task.subject);
- return {id:task.id,title:task.title,start,end,allDay,priority:5-task.priority,color:task.done?'#7b8797':subject?subjectColors[subject.color]:'#7957d5',readOnly:task.done,resourceId:task.subject||PERSONAL_CALENDAR_RESOURCE,data:task};
+ return {id:task.id,title:task.title,start,end,allDay,timedDurationMinutes:task.duration,resizable:!allDay,priority:5-task.priority,color:task.done?'#7b8797':subject?subjectColors[subject.color]:'#7957d5',readOnly:task.done,resourceId:task.subject||PERSONAL_CALENDAR_RESOURCE,data:task};
+}
+/** A transient drag preview for a saved task; no date is committed until drop. */
+export function taskToCalendarDragEvent(task:Task,subjects:Subject[],anchor:Date):CalendarEvent<Task>|null{
+ if(task.done||!Number.isFinite(task.duration)||task.duration<5||task.duration>480||!Number.isFinite(anchor.getTime()))return null;
+ const event=taskToCalendarEvent({...task,due:parseCalendarDay(task.due)?task.due:calendarDayKey(anchor)},subjects);
+ return event?{...event,data:task}:null;
 }
 export type CalendarTaskPatch=Pick<Task,'due'|'time'|'duration'|'subject'>;
 export function calendarUpdateToTask(task:Task,update:Pick<EventCalendarProposedUpdate<Task>,'start'|'end'|'allDay'|'resourceId'|'source'>,subjectIds:string[]):CalendarTaskPatch{

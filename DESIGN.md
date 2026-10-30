@@ -137,3 +137,18 @@ Extend the existing CBT question, option, explanation and solution surfaces thro
 The importer treats complete `<math>` fragments as opaque source before TeX AST traversal, comment cleanup and numbered text/key/solution scanning. Presentation markup, text annotations, percent signs and chemistry commands inside those fragments must survive without creating a question, option or key. Restore the original fragments for editable review and shared preview. Standalone `.mml`/`.mathml` files are explicitly equation snippets; they do not supply a CBT schema or justify invented stems/answers. General XML/HTML file import stays unavailable.
 
 The renderer’s bounded MathML sanitizer owns allowed mathematical markup and attributes. Keep XML directives, external entities, HTML, event handlers, remote resources and executable content out of the render path. Mandatory review and missing-key gates remain in place. Use clear file/field labels to distinguish source import from mathematical display; do not hide renderer implementation controls in the test-taking flow.
+
+## Calendar scheduling and task spacing — 30 October 2026
+
+Reference lock: the existing Verdant theme owns canvas, typography, violet accents and subject colors. The user's Google Calendar screenshot and 56-second recording own the scheduling behavior: a fixed time gutter, separate Any time row, continuous hour lines, moving a block across days without changing its duration, and dragging an edge with a live range. The recording shows bottom-edge resizing; the user's written request adds the top edge. Refero live research was unavailable because the subscription is inactive; its bundled focus, touch and form guidance supplements these supplied references.
+
+| Decision | Source | Role preserved |
+| --- | --- | --- |
+| 18px list insets, 12px on phones | User task-row screenshot | Keep completion controls and subject badges inside their row surface |
+| Solid hour, softer half-hour and faint quarter-hour lines | User calendar screenshot and recording | Time structure at the existing 64px/hour density |
+| 15-minute move/resize snapping | Recording at 16–22 seconds | Explicit calendar position, with live start/end labels |
+| Visible top/bottom grips, vertical cursor and named keyboard controls | User request and bundled accessibility guidance | Change one edge while holding the other fixed |
+| Collapsible work tray with real saved task identities | Existing task model and user's drag-to-calendar request | Schedule work without creating duplicate tasks |
+| Short edge-hover delay when entering from the tray | Observed phone interaction | Prevent accidental scrolling before reaching the intended slot |
+
+Calendar changes commit through the existing workspace store on release and remain visible in List, Board, task editing and related workspace views. Planned duration stays separate from measured focus time and completion history. Drop validation resolves the current saved task, rejects completed or invalid items, preserves existing subjects, and provides conservative Undo. Escaping or releasing outside the calendar cancels the gesture. A transient preview date for undated work is never saved until a valid drop.

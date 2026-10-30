@@ -48,6 +48,9 @@ interface CalendarEvent<TData = unknown> {
   /** Start and end must be midnights in the display time zone: segmentation
    *  walks raw instants, so another zone's midnight paints the wrong days. */
   allDay?: boolean
+  /** Planned clock-time duration when an untimed/all-day item is dropped on
+   * the time grid. Kept separate from the date-only event's day envelope. */
+  timedDurationMinutes?: number
   /** Structured rule or a raw "RRULE:..." line. */
   recurrence?: EventCalendarRecurrenceRule | string
   /** This event is an edited single occurrence of that series. */

@@ -16,10 +16,12 @@ import {
   zonedStartOfDay,
 } from "./event-calendar-lib"
 import type {
+  CalendarEvent,
   EventCalendarProposedUpdate,
   EventCalendarSegment,
 } from "./event-calendar-types"
 import { addDays, addMinutes, differenceInCalendarDays } from "date-fns"
+import { timedMoveDurationMs } from "./event-calendar-interaction-math"
 
 /**
  * Activation policy (dnd-kit parity where proven):
@@ -242,6 +244,8 @@ interface BeginGestureConfig<TData> {
   /** create only */
   createDay?: Date
   createAllDay?: boolean
+  /** A saved item from a shelf, not an occurrence already on the grid. */
+  external?: boolean
   /**
    * Consumer classNames for the engine's vanilla-DOM overlays (carry clone,
    * validation hint pill), forwarded by the gestures hook - the engine itself
@@ -359,6 +363,9 @@ function beginGesture<TData>(config: BeginGestureConfig<TData>) {
   let rafScroll: number | null = null
   let lastProposalKey = ""
   let touchTimer: ReturnType<typeof setTimeout> | null = null
+  let externalEdgeTimer: ReturnType<typeof setTimeout> | null = null
+  let externalScrollEdge = 0
+  let externalEdgeEnteredAt = 0
   let hintEl: HTMLDivElement | null = null
   let lastValid = true
   // Drag-create anchor minute, frozen at the first proposal: re-deriving it
@@ -423,7 +430,7 @@ function beginGesture<TData>(config: BeginGestureConfig<TData>) {
     // holds no drag state, no overlay and no body class to strand
     window.addEventListener("blur", onWindowBlur)
     surface = collectSurface(origin, internals.getRootEl())
-    if (kind === "move" && occurrence) {
+    if (kind === "move" && occurrence && !config.external) {
       const grabCell = findCell(surface, startX, startY)
       if (grabCell) {
         const originDay = zonedStartOfDay(occurrence.start, timeZone)
@@ -483,6 +490,19 @@ function beginGesture<TData>(config: BeginGestureConfig<TData>) {
   } | null => {
     if (!surface) return null
 
+    // A shelf drag (or an event lifted out of the calendar) must not commit
+    // the last hovered slot when released over navigation, a footer or a
+    // different app region. Only visible cells and the scrolling track count.
+    if (kind === "move") {
+      const overCell = findCell(surface, e.clientX, e.clientY)
+      const overColumn = surface.columns.some((column) => {
+        const visible = surface!.viewportRect ?? column.rect
+        return e.clientX >= column.rect.left && e.clientX < column.rect.right &&
+          e.clientY >= visible.top && e.clientY < visible.bottom
+      })
+      if (!overCell && !overColumn) return null
+    }
+
     // ---- create: select a slot range
     if (kind === "create") {
       if (config.createAllDay || surface.columns.length === 0) {
@@ -519,6 +539,9 @@ function beginGesture<TData>(config: BeginGestureConfig<TData>) {
 
     if (!occurrence) return null
     const durationMs = occurrence.end.getTime() - occurrence.start.getTime()
+    // A date-only item occupies a full day for layout, not 24 study hours.
+    // Converting it to clock time uses its own planned duration when supplied.
+    const timedDurationMs = timedMoveDurationMs(occurrence.allDay, durationMs, occurrence.event.timedDurationMinutes, settings.slotDuration)
 
     // ---- day-granularity: month cells and bars in the all-day row
     const overCell = findCell(surface, e.clientX, e.clientY)
@@ -601,7 +624,7 @@ function beginGesture<TData>(config: BeginGestureConfig<TData>) {
       const newStartMin = snapMinutes(rawMin - grabOffsetMin, snap)
       // the clamp keeps the grabbed CHIP inside the column it is over; the
       // lead then carries the rest of a cross-midnight occurrence with it
-      const chipDurationMin = Math.round(grabSegDurationMs / 60000)
+      const chipDurationMin = Math.round((occurrence.allDay ? timedDurationMs : grabSegDurationMs) / 60000)
       const clamped = Math.min(
         Math.max(newStartMin, col.boundsStartMin),
         col.boundsEndMin - chipDurationMin
@@ -611,7 +634,7 @@ function beginGesture<TData>(config: BeginGestureConfig<TData>) {
       )
       return {
         start,
-        end: new Date(start.getTime() + durationMs),
+        end: new Date(start.getTime() + timedDurationMs),
         allDay: false,
         resourceId: col.resourceId,
       }
@@ -649,7 +672,13 @@ function beginGesture<TData>(config: BeginGestureConfig<TData>) {
 
   const applyProposal = (e: PointerEvent) => {
     const proposal = computeProposal(e)
-    if (!proposal) return
+    if (!proposal) {
+      lastProposalKey = ""
+      lastValid = false
+      setBodyDragging(true, true)
+      if (kind !== "create") internals.setDrag(null)
+      return
+    }
     const key = `${proposal.start.getTime()}-${proposal.end.getTime()}-${proposal.allDay}-${proposal.resourceId ?? ""}`
     if (key === lastProposalKey) return
     lastProposalKey = key
@@ -711,6 +740,7 @@ function beginGesture<TData>(config: BeginGestureConfig<TData>) {
     carryEl = document.createElement("div")
     carryEl.setAttribute("data-slot", "event-calendar-drag-carry")
     carryEl.setAttribute("aria-hidden", "true")
+    carryEl.inert = true
     carryEl.className = CARRY_CLASS
     carryEl.style.width = `${rect.width}px`
     carryEl.style.height = `${rect.height}px`
@@ -787,9 +817,35 @@ function beginGesture<TData>(config: BeginGestureConfig<TData>) {
         delta = step * Math.min(1, (e.clientY - (rect.bottom - edge)) / edge)
       }
     }
+    if (config.external && (e.clientX < rect.left || e.clientX >= rect.right || e.clientY < rect.top || e.clientY >= rect.bottom)) delta = 0
     if (rafScroll) cancelAnimationFrame(rafScroll)
+    rafScroll = null
+    if (config.external) {
+      // Shelf items enter the track through an edge. Scrolling immediately
+      // while crossing that strip moves the intended slot under the pointer
+      // (especially when the phone tray sits above a short viewport).
+      // A deliberate edge hold still scrolls, even without further movement.
+      const nextEdge = Math.sign(delta)
+      if (nextEdge !== externalScrollEdge) {
+        if (externalEdgeTimer) clearTimeout(externalEdgeTimer)
+        externalEdgeTimer = null
+        externalScrollEdge = nextEdge
+        externalEdgeEnteredAt = performance.now()
+      }
+      if (nextEdge !== 0) {
+        const remaining = 250 - (performance.now() - externalEdgeEnteredAt)
+        if (remaining > 0) {
+          if (!externalEdgeTimer) externalEdgeTimer = setTimeout(() => {
+            externalEdgeTimer = null
+            if (!finished) autoScroll(lastPointer)
+          }, Math.ceil(remaining))
+          return
+        }
+      }
+    }
     if (delta !== 0) {
       const tick = () => {
+        if (finished) return
         // Write-then-readback: the browser clamps scrollTop at the scroll
         // extent, so mirror only the APPLIED delta - otherwise parking the
         // pointer in the edge zone at the limit keeps inflating the tracked
@@ -804,7 +860,7 @@ function beginGesture<TData>(config: BeginGestureConfig<TData>) {
         // number read (no DOM scrollTop, no forced reflow)
         surface!.scrollTop += applied
         applyProposal(e)
-        rafScroll = requestAnimationFrame(tick)
+        if (!finished) rafScroll = requestAnimationFrame(tick)
       }
       rafScroll = requestAnimationFrame(tick)
     }
@@ -824,6 +880,9 @@ function beginGesture<TData>(config: BeginGestureConfig<TData>) {
     window.removeEventListener("keydown", onKeyDown, true)
     if (rafScroll) cancelAnimationFrame(rafScroll)
     if (touchTimer) clearTimeout(touchTimer)
+    if (externalEdgeTimer) clearTimeout(externalEdgeTimer)
+    externalEdgeTimer = null
+    externalScrollEdge = 0
     hintEl?.remove()
     hintEl = null
     carryEl?.remove()
@@ -875,6 +934,7 @@ function beginGesture<TData>(config: BeginGestureConfig<TData>) {
 
   const onPointerUp = (e: PointerEvent) => {
     if (e.pointerId !== pointerId) return
+    if (active && (lastProposalKey || Math.hypot(e.clientX - startX, e.clientY - startY) >= activationDistance)) applyProposal(e)
     cleanup()
     if (!active) return
     lastGestureEndedAt = performance.now()
@@ -893,7 +953,16 @@ function beginGesture<TData>(config: BeginGestureConfig<TData>) {
     }
     const drag = state.drag
     internals.setDrag(null)
-    if (!drag || !occurrence) return
+    if (!drag || !occurrence || !drag.valid || !lastValid) return
+    if (settings.canDropEvent && !settings.canDropEvent({
+      event: occurrence.event,
+      occurrence,
+      start: drag.proposedStart,
+      end: drag.proposedEnd,
+      allDay: drag.proposedAllDay,
+      resourceId: drag.proposedResourceId,
+      source: kind === "move" ? "drag" : (kind as "resize-start" | "resize-end"),
+    })) return
     const unchanged =
       drag.proposedStart.getTime() === occurrence.start.getTime() &&
       drag.proposedEnd.getTime() === occurrence.end.getTime() &&
@@ -1038,6 +1107,45 @@ function useEventCalendarGestures<TData = unknown>() {
     [instance, canResize, ui]
   )
 
+  const beginExternalMove = useCallback(
+    (e: React.PointerEvent, event: CalendarEvent<TData>) => {
+      if (e.button !== 0) return
+      e.stopPropagation()
+      markChipPress()
+      const occurrence = {
+        key: `${event.id}::${event.start.toISOString()}`,
+        eventId: event.id,
+        event,
+        start: event.start,
+        end: event.end,
+        allDay: event.allDay ?? false,
+        isRecurring: false,
+      }
+      const segment: EventCalendarSegment<TData> = {
+        occurrence,
+        day: zonedStartOfDay(event.start, instance.settings.timeZone),
+        isStart: true,
+        isEnd: true,
+        continuesBefore: false,
+        continuesAfter: false,
+      }
+      if (!canDrag(segment)) {
+        beginBlockedGesture(instance, e.nativeEvent, segment, "move")
+        return
+      }
+      beginGesture({
+        instance,
+        kind: "move",
+        origin: e.currentTarget as HTMLElement,
+        startEvent: e.nativeEvent,
+        segment,
+        external: true,
+        ui,
+      })
+    },
+    [instance, canDrag, ui]
+  )
+
   const beginCreate = useCallback(
     (e: React.PointerEvent, day: Date, allDay: boolean) => {
       if (e.button !== 0) return
@@ -1055,7 +1163,7 @@ function useEventCalendarGestures<TData = unknown>() {
     [instance, ui]
   )
 
-  return { beginMove, beginResize, beginCreate, canDrag, canResize }
+  return { beginMove, beginExternalMove, beginResize, beginCreate, canDrag, canResize }
 }
 
 export {

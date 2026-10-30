@@ -23,6 +23,7 @@ import {
   wasRecentDrag,
 } from "./event-calendar-dnd"
 import {
+  getDayTotalMinutes,
   spansMultipleDays,
   toZoned,
   zonedStartOfDay,
@@ -33,7 +34,8 @@ import type {
 } from "./event-calendar-types"
 import { mergeProps } from "@base-ui/react/merge-props"
 import { useRender } from "@base-ui/react/use-render"
-import { addDays, format } from "date-fns"
+import { addDays, addMinutes, format } from "date-fns"
+import { resizeCalendarEdge } from "./event-calendar-interaction-math"
 
 import { cn } from "./primitives"
 import {
@@ -382,17 +384,57 @@ function EventCalendarEvent<TData = unknown>({
   const tooltipOn = Boolean(tooltipContent)
 
   const showResize =
-    interactive && resizeOn && !event.readOnly && event.resizable !== false
-  // Hover grip pill (mirrors the gantt bars) marking the resize direction.
-  // Shown on compact sub-compactEventMinutes blocks too: the 1.5rem chip
-  // min-height leaves edge room without colliding with the centered title.
+    interactive && resizeOn && !event.readOnly && event.resizable !== false && (timedBlock || isBar)
+  // Resize controls are siblings of the event button. Nesting interactive
+  // controls inside a native button hides them from assistive technologies.
+  function resizeByKeyboard(e: React.KeyboardEvent, edge: "start" | "end") {
+    const earlier = timedBlock ? "ArrowUp" : "ArrowLeft"
+    const later = timedBlock ? "ArrowDown" : "ArrowRight"
+    if (e.key !== earlier && e.key !== later) return
+    e.preventDefault()
+    e.stopPropagation()
+    if (!gestures.canResize(segment)) return
+    const delta = e.key === earlier ? -1 : 1
+    let start = occurrence.start
+    let end = occurrence.end
+    if (timedBlock) {
+      const dayStart = zonedStartOfDay(segment.day, settings.timeZone)
+      const next = resizeCalendarEdge(start.getTime(), end.getTime(), edge,
+        delta * settings.snapDuration,
+        addMinutes(dayStart, settings.dayStartHour * 60).getTime(),
+        addMinutes(dayStart, Math.min(settings.dayEndHour * 60, getDayTotalMinutes(segment.day, settings.timeZone))).getTime(),
+        settings.snapDuration)
+      if (!next) return
+      start = new Date(next.start)
+      end = new Date(next.end)
+    } else {
+      if (edge === "start") start = addDays(toZoned(start, settings.timeZone), delta)
+      else end = addDays(toZoned(end, settings.timeZone), delta)
+      if (end <= start) return
+    }
+    const proposal = {event, occurrence, start, end, allDay:occurrence.allDay, source:edge === "start" ? "resize-start" as const : "resize-end" as const}
+    if (settings.canDropEvent && !settings.canDropEvent(proposal)) return
+    if (!instance.internals.applyProposedUpdate(proposal)) return
+    const root = instance.internals.getRootEl()
+    const announcer = root?.querySelector<HTMLElement>('[data-slot="event-calendar-announcer"]')
+    if (announcer) announcer.textContent = `${event.title}, ${settings.i18n.functions.formatEventTime(toZoned(start, settings.timeZone), toZoned(end, settings.timeZone), occurrence.allDay, {locale:settings.locale})}`
+    // Moving the start changes the occurrence key and can replace its row.
+    // Restore the same named control after React commits the updated event.
+    requestAnimationFrame(() => {
+      const controls = root?.querySelectorAll<HTMLElement>('[data-slot="event-calendar-event-controls"]')
+      for (const control of controls ?? []) if (control.dataset.eventId === event.id) {
+        control.querySelector<HTMLElement>(`[data-edge="${edge}"]`)?.focus({preventScroll:true})
+        break
+      }
+    })
+  }
   const grip = (
     <span
       aria-hidden
       data-slot="event-calendar-resize-grip"
       className={cn(
-        "bg-foreground/40 rounded-full",
-        timedBlock ? "h-0.5 w-2.5" : "h-2.5 w-0.5",
+        "calendar-resize-grip",
+        timedBlock ? "calendar-resize-grip-vertical" : "calendar-resize-grip-horizontal",
         viewConfig.classNames?.resizeGrip
       )}
     />
@@ -400,56 +442,84 @@ function EventCalendarEvent<TData = unknown>({
   const resizeHandles = showResize && (
     <>
       {timedBlock && segment.isStart && (
-        <span
+        <button
+          type="button"
           data-slot="event-calendar-resize-handle"
           data-edge="start"
+          data-axis="vertical"
+          aria-label={`Adjust start of ${event.title}`}
+          aria-keyshortcuts="ArrowUp ArrowDown"
+          title="Drag to adjust start · Use ↑ or ↓ to change by one slot"
           className={cn(
-            "absolute inset-x-1 top-0 flex h-1.5 cursor-ns-resize items-center justify-center opacity-0 transition-opacity duration-150 group-hover/ec-event:opacity-100",
+            "calendar-resize-handle calendar-resize-start calendar-resize-vertical",
             viewConfig.classNames?.resizeHandle
           )}
-          onPointerDown={(e) => gestures.beginResize(e, segment, "start")}
+          onPointerDown={(e) => {markChipPress();gestures.beginResize(e, segment, "start")}}
+          onKeyDown={(e) => resizeByKeyboard(e, "start")}
+          onClick={(e) => {e.preventDefault();e.stopPropagation()}}
         >
           {grip}
-        </span>
+        </button>
       )}
       {timedBlock && segment.isEnd && (
-        <span
+        <button
+          type="button"
           data-slot="event-calendar-resize-handle"
           data-edge="end"
+          data-axis="vertical"
+          aria-label={`Adjust end of ${event.title}`}
+          aria-keyshortcuts="ArrowUp ArrowDown"
+          title="Drag to adjust end · Use ↑ or ↓ to change by one slot"
           className={cn(
-            "absolute inset-x-1 bottom-0 flex h-1.5 cursor-ns-resize items-center justify-center opacity-0 transition-opacity duration-150 group-hover/ec-event:opacity-100",
+            "calendar-resize-handle calendar-resize-end calendar-resize-vertical",
             viewConfig.classNames?.resizeHandle
           )}
-          onPointerDown={(e) => gestures.beginResize(e, segment, "end")}
+          onPointerDown={(e) => {markChipPress();gestures.beginResize(e, segment, "end")}}
+          onKeyDown={(e) => resizeByKeyboard(e, "end")}
+          onClick={(e) => {e.preventDefault();e.stopPropagation()}}
         >
           {grip}
-        </span>
+        </button>
       )}
       {(horizontalBar || (isBar && inTimeGrid)) && segment.isStart && (
-        <span
+        <button
+          type="button"
           data-slot="event-calendar-resize-handle"
           data-edge="start"
+          data-axis="horizontal"
+          aria-label={`Adjust start of ${event.title}`}
+          aria-keyshortcuts="ArrowLeft ArrowRight"
+          title="Drag to adjust start · Use ← or → to change by one day"
           className={cn(
-            "absolute inset-y-0 start-0 flex w-2 cursor-ew-resize items-center justify-center opacity-0 transition-opacity duration-150 group-hover/ec-event:opacity-100",
+            "calendar-resize-handle calendar-resize-start calendar-resize-horizontal",
             viewConfig.classNames?.resizeHandle
           )}
-          onPointerDown={(e) => gestures.beginResize(e, segment, "start")}
+          onPointerDown={(e) => {markChipPress();gestures.beginResize(e, segment, "start")}}
+          onKeyDown={(e) => resizeByKeyboard(e, "start")}
+          onClick={(e) => {e.preventDefault();e.stopPropagation()}}
         >
           {grip}
-        </span>
+        </button>
       )}
       {(horizontalBar || (isBar && inTimeGrid)) && segment.isEnd && (
-        <span
+        <button
+          type="button"
           data-slot="event-calendar-resize-handle"
           data-edge="end"
+          data-axis="horizontal"
+          aria-label={`Adjust end of ${event.title}`}
+          aria-keyshortcuts="ArrowLeft ArrowRight"
+          title="Drag to adjust end · Use ← or → to change by one day"
           className={cn(
-            "absolute inset-y-0 end-0 flex w-2 cursor-ew-resize items-center justify-center opacity-0 transition-opacity duration-150 group-hover/ec-event:opacity-100",
+            "calendar-resize-handle calendar-resize-end calendar-resize-horizontal",
             viewConfig.classNames?.resizeHandle
           )}
-          onPointerDown={(e) => gestures.beginResize(e, segment, "end")}
+          onPointerDown={(e) => {markChipPress();gestures.beginResize(e, segment, "end")}}
+          onKeyDown={(e) => resizeByKeyboard(e, "end")}
+          onClick={(e) => {e.preventDefault();e.stopPropagation()}}
         >
           {grip}
-        </span>
+        </button>
       )}
     </>
   )
@@ -532,7 +602,6 @@ function EventCalendarEvent<TData = unknown>({
     children: (
       <>
         {content}
-        {resizeHandles}
       </>
     ),
   }
@@ -547,6 +616,7 @@ function EventCalendarEvent<TData = unknown>({
     <EventCalendarChipContext.Provider
       value={{ occurrence, segment, isDragging, isSelected }}
     >
+      <div data-slot="event-calendar-event-controls" data-event-id={event.id} data-timed={timedBlock || undefined} className={showResize ? "calendar-event-controls" : "contents"} style={{"--ec-event-color":event.color ?? "var(--color-primary)"} as CSSProperties}>
       {tooltipOn ? (
         <TooltipProvider delay={tooltipOpts?.delay ?? 600}>
           <Tooltip>
@@ -559,9 +629,9 @@ function EventCalendarEvent<TData = unknown>({
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
-      ) : (
-        chip
-      )}
+      ) : chip}
+      {resizeHandles}
+      </div>
     </EventCalendarChipContext.Provider>
   )
 }

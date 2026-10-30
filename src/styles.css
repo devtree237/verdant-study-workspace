@@ -77,6 +77,10 @@
 .board-column{transition:background-color var(--duration-fast) var(--ease-out-expo),border-color var(--duration-fast) var(--ease-out-expo),box-shadow var(--duration-fast) var(--ease-out-expo)}
 .board-column.drop-target{border-color:#93bba2;background:#edf7f0;box-shadow:inset 0 0 0 1px #c4dfce}
 .board-task.is-dragging{cursor:grabbing;user-select:none}
+/* Inset list controls and subjects from the row surface without changing board cards. */
+.task-groups .task-card{padding:18px}
+.task-groups .task-row{gap:12px}
+@media(max-width:720px){.task-groups .task-card{padding-inline:12px}}
 @keyframes botanical-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
 @keyframes botanical-breathe{0%,100%{box-shadow:0 0 0 0 rgba(16,124,65,0)}50%{box-shadow:0 0 0 4px rgba(16,124,65,.08)}}
 @media(max-width:720px){.analytics-stats>div{padding:14px}.module-summary>div{padding:13px}.labels-grid>.empty-state{min-height:330px}.study-rail{padding-bottom:32px}}
