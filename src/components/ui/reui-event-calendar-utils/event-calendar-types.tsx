@@ -59,6 +59,8 @@ interface CalendarEvent<TData = unknown> {
   originalStart?: Date
   /** Token or css color; flows to the --ec-event-color css var. */
   color?: string
+  /** Explicit foreground for solid event surfaces. */
+  textColor?: string
   /** Excluded from drag and resize regardless of interactions state. */
   readOnly?: boolean
   /** Per-event overrides; defaults come from interactions.drag / .resize. */

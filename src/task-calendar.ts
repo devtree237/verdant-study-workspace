@@ -1,5 +1,6 @@
 import type { Subject, Task } from './model';
 import type { CalendarEvent, EventCalendarProposedUpdate } from './components/ui/reui-event-calendar-utils/event-calendar-types';
+import { calendarTextColor } from './calendar-appearance';
 export const PERSONAL_CALENDAR_RESOURCE='__verdant_personal__';
 export const calendarDayKey=(date:Date)=>`${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
 export function parseCalendarDay(value:string):Date|null{
@@ -14,7 +15,8 @@ export function taskToCalendarEvent(task:Task,subjects:Subject[]):CalendarEvent<
  if(!allDay){const match=/^(\d{2}):(\d{2})$/.exec(task.time!);if(!match||Number(match[1])>23||Number(match[2])>59)return null;start.setHours(Number(match[1]),Number(match[2]),0,0);}
  const end=new Date(allDay?start:start.getTime()+task.duration*60_000);if(allDay)end.setDate(end.getDate()+1);
  const subject=subjects.find(subject=>subject.id===task.subject);
- return {id:task.id,title:task.title,start,end,allDay,timedDurationMinutes:task.duration,resizable:!allDay,priority:5-task.priority,color:task.done?'#7b8797':subject?subjectColors[subject.color]:'#7957d5',readOnly:task.done,resourceId:task.subject||PERSONAL_CALENDAR_RESOURCE,data:task};
+ const color=task.done?'#7b8797':subject?subjectColors[subject.color]:'#7957d5';
+ return {id:task.id,title:task.title,start,end,allDay,timedDurationMinutes:task.duration,resizable:!allDay,priority:5-task.priority,color,textColor:calendarTextColor(color),readOnly:task.done,resourceId:task.subject||PERSONAL_CALENDAR_RESOURCE,data:task};
 }
 /** A transient drag preview for a saved task; no date is committed until drop. */
 export function taskToCalendarDragEvent(task:Task,subjects:Subject[],anchor:Date):CalendarEvent<Task>|null{

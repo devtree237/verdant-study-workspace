@@ -152,3 +152,10 @@ Reference lock: the existing Verdant theme owns canvas, typography, violet accen
 | Short edge-hover delay when entering from the tray | Observed phone interaction | Prevent accidental scrolling before reaching the intended slot |
 
 Calendar changes commit through the existing workspace store on release and remain visible in List, Board, task editing and related workspace views. Planned duration stays separate from measured focus time and completion history. Drop validation resolves the current saved task, rejects completed or invalid items, preserves existing subjects, and provides conservative Undo. Escaping or releasing outside the calendar cancels the gesture. A transient preview date for undated work is never saved until a valid drop.
+
+
+## Solid calendar and material previews — 2 November 2026
+
+The user’s folder screenshot and existing Verdant tokens govern this focused update. Keep the violet folder illustration and its hover movement, but use actual saved descendant materials as the preview content. Empty folders show the folder itself, with no placeholder material, blank paper or floating Open folder chip. The illustration is a native button that enters the folder; preview buttons open the corresponding saved resource. Trigger-before-preview DOM order supports focus, Tab and Enter, and return focus stays on the visible folder button after selection. The phone hover bridge must fit within the card rather than expand the page.
+
+Calendar task blocks use opaque existing subject colors with an explicit foreground chosen for at least 4.5:1 contrast. Chrome stays on solid Verdant surfaces; structural time-grid lines and temporary drag ghosts retain their functional roles. A visible Planning / Day / Week switch changes the existing calendar view. Planning maps to the existing agenda, and the other menu views remain available. Both selectors share the same state, date anchor and task store. Preserve the prior drag, resize, Undo and measured-time semantics.

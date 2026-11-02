@@ -58,6 +58,7 @@ export default function FolderFloat({
   physics = true,
   drift = 0.5,
   onSelect,
+  onActivate,
   onOpenChange,
   folderColor = '#3f3f46',
   frontColor = '#52525b',
@@ -83,6 +84,8 @@ export default function FolderFloat({
   const [live, setLive] = useState(false);
   const [sizes, setSizes] = useState([]);
   const anchorRef = useRef(null);
+  const triggerRef = useRef(null);
+  const suppressPointerClick = useRef(false);
   const pillRefs = useRef([]);
   const world = useRef({
     engine: null,
@@ -96,7 +99,7 @@ export default function FolderFloat({
     live: false
   });
   const latest = useRef({});
-  latest.current = { onSelect, onOpenChange, drift, reduce: false };
+  latest.current = { onSelect, onActivate, onOpenChange, drift, reduce: latest.current.reduce ?? false };
   const popTimer = useRef(undefined);
   const liveTimer = useRef(undefined);
   const list = items.map(item => (typeof item === 'string' ? { label: item, value: item } : item));
@@ -231,9 +234,8 @@ export default function FolderFloat({
 
   useEffect(() => {
     clearTimeout(liveTimer.current);
-    if (!open || !physics || latest.current.reduce) {
-      if (!open) stopPhysics();
-      else if (!physics) stopPhysics();
+    if (!open || !physics || !n || latest.current.reduce) {
+      stopPhysics();
       return undefined;
     }
     liveTimer.current = setTimeout(startPhysics, openDuration + (n - 1) * stagger + 80);
@@ -260,6 +262,10 @@ export default function FolderFloat({
   );
 
   const pick = (item, i) => {
+    // Keep the return focus on a visible control when the preview closes.
+    if (closeOnSelect && anchorRef.current?.contains(document.activeElement)) {
+      triggerRef.current?.focus({ preventScroll: true });
+    }
     latest.current.onSelect?.(item.value, i);
     clearTimeout(popTimer.current);
     setPopped(i);
@@ -272,6 +278,7 @@ export default function FolderFloat({
     return r ? { x: e.clientX - r.left, y: e.clientY - r.top } : { x: 0, y: 0 };
   };
   const down = (e, i) => {
+    suppressPointerClick.current = false;
     const w = world.current;
     if (!w.live || e.button !== 0) return;
     const b = w.bodies[i];
@@ -312,6 +319,7 @@ export default function FolderFloat({
     const w = world.current;
     const d = w.drag;
     if (!d || d.i !== i || d.id !== e.pointerId) return;
+    suppressPointerClick.current = true;
     w.drag = null;
     e.currentTarget.removeAttribute('data-drag');
     try {
@@ -329,11 +337,13 @@ export default function FolderFloat({
       data-live={live ? '' : undefined}
       data-physics={physics ? '' : undefined}
       data-trigger={trigger}
+      data-empty={n === 0 ? '' : undefined}
+      onFocusCapture={hover ? () => set(true) : undefined}
       onPointerEnter={hover ? () => set(true) : undefined}
       onPointerLeave={
         hover
-          ? () => {
-              if (!world.current.drag) set(false);
+          ? e => {
+              if (!world.current.drag && !e.currentTarget.contains(document.activeElement)) set(false);
             }
           : undefined
       }
@@ -341,6 +351,7 @@ export default function FolderFloat({
       onKeyDown={e => {
         if (e.key === 'Escape' && open) {
           e.stopPropagation();
+          if (e.target !== triggerRef.current) triggerRef.current?.focus();
           set(false);
         }
       }}
@@ -365,6 +376,26 @@ export default function FolderFloat({
         '--ff-spring': `cubic-bezier(0.34, ${(1 + bounce * 1.9).toFixed(2)}, 0.64, 1)`
       }}
     >
+      <div className="folder-float__folder">
+        <span className="folder-float__back" aria-hidden="true" />
+        {n > 0 && <span className="folder-float__paper" aria-hidden="true" />}
+        <span className="folder-float__front" aria-hidden="true">
+          <span className="folder-float__label">{label}</span>
+          <span className="folder-float__sub">{sub}</span>
+        </span>
+        <button
+          ref={triggerRef}
+          type="button"
+          className="folder-float__trigger"
+          aria-expanded={onActivate ? undefined : open}
+          aria-label={onActivate ? `Open ${label} folder, ${sub}` : `${label}, ${sub}`}
+          onClick={e => {
+            if (latest.current.onActivate) latest.current.onActivate();
+            else if (!hover || e.detail === 0 || window.matchMedia('(hover: none)').matches) set(!open);
+            else set(true);
+          }}
+        />
+      </div>
       <div ref={anchorRef} className="folder-float__items">
         {list.map((item, i) => {
           const p = pos[i];
@@ -377,6 +408,7 @@ export default function FolderFloat({
               type="button"
               className="folder-float__item"
               title={item.title || item.label}
+              aria-label={item.title || item.label}
               tabIndex={open ? 0 : -1}
               aria-hidden={!open}
               data-pop={popped === i ? '' : undefined}
@@ -391,28 +423,20 @@ export default function FolderFloat({
               onPointerUp={e => up(e, i, item)}
               onPointerCancel={e => up(e, i, item)}
               onClick={e => {
-                if (!world.current.live || e.detail === 0) pick(item, i);
+                // A live physics pointer-up already picked or dragged the item.
+                // Closing stops physics before its trailing native click fires.
+                if (e.detail !== 0 && suppressPointerClick.current) {
+                  suppressPointerClick.current = false;
+                  return;
+                }
+                suppressPointerClick.current = false;
+                pick(item, i);
               }}
             >
               <span className="folder-float__drift">{item.label}</span>
             </button>
           );
         })}
-      </div>
-      <div className="folder-float__folder">
-        <span className="folder-float__back" aria-hidden="true" />
-        <span className="folder-float__paper" aria-hidden="true" />
-        <span className="folder-float__front" aria-hidden="true">
-          <span className="folder-float__label">{label}</span>
-          <span className="folder-float__sub">{sub}</span>
-        </span>
-        <button
-          type="button"
-          className="folder-float__trigger"
-          aria-expanded={open}
-          aria-label={`${label}, ${sub}`}
-          onClick={e => { if (!hover || e.detail === 0 || window.matchMedia('(hover: none)').matches) set(!open); else set(true); }}
-        />
       </div>
     </div>
   );

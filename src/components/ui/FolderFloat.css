@@ -281,4 +281,6 @@
 .folder-float__front{box-shadow:0 -5px 16px #2e005b18}
 .folder-float__sub{opacity:.8}
 .folder-float__trigger:hover{background:transparent}
+.folder-float__drift{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.folder-float[data-empty] .folder-float__items{display:none}
 @media(prefers-reduced-motion:reduce){.folder-float__item[data-pop]{animation:none}}

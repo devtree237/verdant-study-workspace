@@ -553,6 +553,7 @@ function EventCalendarEvent<TData = unknown>({
     tabIndex: preview ? -1 : undefined,
     style: {
       "--ec-event-color": event.color ?? "var(--color-primary)",
+      "--ec-event-foreground": event.textColor ?? "var(--color-primary-foreground)",
     } as CSSProperties,
     onPointerDown: (e: React.PointerEvent) => {
       e.stopPropagation()
@@ -616,7 +617,7 @@ function EventCalendarEvent<TData = unknown>({
     <EventCalendarChipContext.Provider
       value={{ occurrence, segment, isDragging, isSelected }}
     >
-      <div data-slot="event-calendar-event-controls" data-event-id={event.id} data-timed={timedBlock || undefined} className={showResize ? "calendar-event-controls" : "contents"} style={{"--ec-event-color":event.color ?? "var(--color-primary)"} as CSSProperties}>
+      <div data-slot="event-calendar-event-controls" data-event-id={event.id} data-timed={timedBlock || undefined} className={showResize ? "calendar-event-controls" : "contents"} style={{"--ec-event-color":event.color ?? "var(--color-primary)","--ec-event-foreground":event.textColor ?? "var(--color-primary-foreground)"} as CSSProperties}>
       {tooltipOn ? (
         <TooltipProvider delay={tooltipOpts?.delay ?? 600}>
           <Tooltip>
