@@ -6,6 +6,10 @@ import { GUARDED_INTEGRITY_POLICY } from './cbt-integrity';
 const paper: TestPaper = { id:'routing-test', title:'Routing test fixture', description:'', durationMinutes:10, createdAt:1000, updatedAt:1000, questions:[{ id:'q',prompt:'Question fixture',subject:'Subject',chapter:'',topic:'',difficulty:'Easy',kind:'single',options:['First','Second'],correctAnswers:[0],marks:1,negativeMarks:0,idealSeconds:30,explanation:'' }] };
 const saved = (activeAttempt: unknown) => JSON.stringify({ version:1, activeAttempt });
 describe('guarded attempt navigation recovery', () => {
+  it('opens the dedicated Calendar and Focus routes while keeping guarded tests fenced', () => {
+    const guarded=createAttempt(paper,1000,{integrityPolicy:{...GUARDED_INTEGRITY_POLICY}});
+    for(const route of ['Calendar','Focus']){expect(resolveWorkspaceRoute('#'+route,null)).toBe(route);expect(resolveWorkspaceRoute('#'+route,saved(guarded))).toBe('Test Centre');}
+  });
   it('resumes guarded attempts regardless of saved route, including malformed hashes', () => {
     const attempt = createAttempt(paper, 1000, { integrityPolicy:{...GUARDED_INTEGRITY_POLICY} });
     expect(resolveWorkspaceRoute('#Study%20Chat', saved(attempt))).toBe('Test Centre');

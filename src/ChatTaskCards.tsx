@@ -78,6 +78,22 @@ export function TaskSnapshotCards({ tasks, emptyText = 'No tasks are included in
   return <div className={`task-snapshot-grid ${compact ? 'is-compact' : ''} ${className}`}>{tasks.map((task, index) => <TaskSnapshotCard key={`${task.id || 'snapshot'}-${index}`} task={task} compact={compact} {...actions} />)}</div>;
 }
 
+function TaskAttachmentChip({task,onRemove,disabled}:{task:ChatTaskCard;onRemove:(task:ChatTaskCard)=>void;disabled:boolean}){
+  const root=useRef<HTMLLIElement>(null),completed=task.done||task.stage==='Completed',status=completed?'Completed':task.stage||'Task';
+  useGSAP(()=>{if(allowMotion())gsap.fromTo(root.current,{opacity:0,y:3},{opacity:1,y:0,duration:motion.fast,ease:motion.easeOut,clearProps:'opacity,transform'});},{scope:root});
+  return <li ref={root} className={`task-attachment-chip ${completed?'is-completed':''}`}>
+    <span className="task-attachment-dot" role="img" aria-label={status} title={status}/>
+    <span className="task-attachment-title" title={task.title}>{task.title}</span>
+    {task.subject&&<span className="task-attachment-subject" title={task.subject}>{task.subject}</span>}
+    <button type="button" className="task-attachment-remove" aria-label={`Remove ${task.title} from message`} onClick={()=>onRemove(task)} disabled={disabled}><X size={13} aria-hidden="true"/></button>
+  </li>;
+}
+
+/** Composer previews expose only message attachment actions; the full snapshot is still sent. */
+export function TaskAttachmentChips({tasks,onRemove,disabled=false}:{tasks:readonly ChatTaskCard[];onRemove:(task:ChatTaskCard)=>void;disabled?:boolean}){
+  return <ul className="task-attachment-chips" aria-label="Tasks attached to this message">{tasks.map((task,index)=><TaskAttachmentChip key={`${task.id||'snapshot'}-${index}`} task={task} onRemove={onRemove} disabled={disabled}/>)}</ul>;
+}
+
 const fieldLabels: Record<string, string> = {
   id: 'Record ID', asOf: 'As of', recordedStudyStreakDays: 'Recorded study streak', streakDefinition: 'How the streak is counted', completedToday: 'Tasks completed today', focusLog: 'Focus records', assessments: 'Assessments', testResults: 'Test results', completedTasks: 'Completed tasks', tasks: 'Tasks', selectedDocuments: 'Selected documents', mistakes: 'Mistakes', plannedMinutes: 'Planned time', measuredSeconds: 'Measured time', recordedSeconds: 'Recorded time', recordedScore: 'Recorded score', accuracyPercent: 'Accuracy', submittedAt: 'Submitted', completedDate: 'Completed', wrongAnswer: 'Recorded answer', reviewDate: 'Review date', maximum: 'Maximum score', done: 'Completed', note: 'About this context', text: 'Document text', pages: 'Pages / sections', question: 'Question', score: 'Score', subject: 'Subject', subjects: 'Subject results', minutes: 'Focused time', date: 'Date', title: 'Title', notes: 'Notes', labels: 'Labels', subtasks: 'Subtasks', stage: 'Status', priority: 'Priority', due: 'Due', attempts: 'Review attempts', status: 'Status', category: 'Category', topic: 'Topic', solution: 'Solution', takeaway: 'Takeaway', attempted: 'Attempted', correct: 'Correct', name: 'Name', kind: 'Record type', version: 'Snapshot version', task: 'Task', taskCards: 'Tasks',
 };

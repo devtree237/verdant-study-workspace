@@ -1,0 +1,19 @@
+/* Composer-only attachment treatment. Full shared snapshots and shelf cards retain their actions. */
+.full-page-chat .chat-composer.chat-composer--compact{padding:14px 16px 12px;min-width:0}
+.full-page-chat .chat-composer.chat-composer--compact>textarea{padding:0!important;min-height:56px!important;border-radius:0!important}
+.full-page-chat .chat-composer.chat-composer--compact .chat-composer-toolbar{padding:12px 0 0;min-height:47px;gap:10px}
+.full-page-chat .chat-composer.chat-composer--compact .chat-draft-task-cards{padding:0;margin:12px 0 0;max-width:100%;max-height:132px;overflow:auto}
+.task-attachment-chips{display:flex;flex-wrap:wrap;align-items:center;gap:8px;list-style:none;padding:0;margin:0;min-width:0;max-width:100%}
+.task-attachment-chip{display:flex;align-items:center;gap:8px;min-width:0;max-width:min(100%,390px);height:38px;padding:3px 4px 3px 11px;border:1px solid var(--chat-border,var(--control-border));border-radius:9px;background:var(--chat-panel,var(--surface-soft));color:var(--chat-text,var(--text-primary));font:500 12px/1.5 Inter,sans-serif}
+.task-attachment-dot{flex:0 0 6px;width:6px;height:6px;border-radius:50%;background:var(--chat-muted,var(--text-secondary))}
+.task-attachment-chip.is-completed .task-attachment-dot{background:var(--accent)}
+.task-attachment-title{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.task-attachment-subject{flex:0 1 auto;min-width:0;max-width:90px;padding:2px 6px;border-radius:4px;background:var(--chat-surface,var(--surface));color:var(--chat-muted,var(--text-secondary));font-size:10px;font-weight:400;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.task-attachment-remove{display:grid;place-items:center;flex:0 0 29px;width:29px;height:29px;padding:0!important;border:0;border-radius:5px;color:var(--chat-muted,var(--text-secondary));background:transparent;transition:background-color .14s ease,color .14s ease}
+.task-attachment-remove:hover{background:var(--chat-surface,var(--surface));color:var(--chat-text,var(--text-primary))}
+.task-attachment-remove:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.task-attachment-remove:disabled{cursor:not-allowed;opacity:.45}
+.full-page-chat .chat-composer.chat-composer--compact .chat-draft-attachments{margin:12px 0 0;padding:0}
+.full-page-chat .chat-composer.chat-composer--compact .chat-voice-panel{margin:12px 0 0}
+@media(max-width:640px){.full-page-chat .chat-composer.chat-composer--compact{padding:12px}.full-page-chat .chat-composer.chat-composer--compact .chat-composer-toolbar{gap:5px;padding-top:12px}.task-attachment-chip{max-width:100%;width:100%;font-size:11px}.task-attachment-subject{font-size:9px;max-width:74px}.task-attachment-remove{flex-basis:30px;width:30px;height:30px}}
+@media(prefers-reduced-motion:reduce){.task-attachment-remove{transition:none}}

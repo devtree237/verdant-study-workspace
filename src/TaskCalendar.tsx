@@ -15,7 +15,7 @@ import type { CalendarTaskPatch } from './task-calendar';
 import { CalendarTaskTray } from './CalendarTaskTray';
 import './task-calendar.css';
 
-type Props={tasks:Task[];onAdd:(initial?:TaskDraft)=>void;onEdit:(task:Task)=>void;onLink:(type:'resource'|'mistake',id:string)=>void};
+type Props={tasks:Task[];onAdd:(initial?:TaskDraft)=>void;onEdit:(task:Task)=>void;onLink:(type:'resource'|'mistake',id:string)=>void;initialWorkTrayOpen?:boolean};
 const BASE_VIEWS:CalendarView[]=['month','week','day','days','agenda','resource'];
 const I18N={labels:{allDay:'Any time',noEvents:'No tasks scheduled in this period.',addEvent:'Add task',resources:'Subjects',event:'Task',events:(count:number)=>`${count} task${count===1?'':'s'}`},viewNames:{resource:'Subjects',agenda:'Planning'}};
 const CLASS_NAMES={content:'verdant-calendar-content',event:'verdant-task-event',monthView:'verdant-month',timeGrid:'verdant-time-grid',agendaView:'verdant-agenda',dayColumn:'verdant-day-column',morePopover:'verdant-calendar-overflow'};
@@ -42,8 +42,8 @@ function AnimatedCalendarContent(){
  useGSAP(()=>{gsap.fromTo(root.current,{opacity:0,y:7},{opacity:1,y:0,duration:duration(.24),ease:'expo.out',clearProps:'opacity,transform'});},{scope:root,dependencies:[view,date.getTime()],revertOnUpdate:true});
  return <div className="calendar-content-wrap" ref={root}><EventCalendarContent/></div>;
 }
-export function TaskCalendar({tasks,onAdd,onEdit,onLink}:Props){
- const {data,update,notify}=useStore(),[selected,setSelected]=useState<string|null>(null),[remove,setRemove]=useState<Task|null>(null),[unscheduledOpen,setUnscheduledOpen]=useState(()=>tasks.some(task=>!task.done&&(!task.time||!taskToCalendarEvent(task,data.subjects)))),[error,setError]=useState('');
+export function TaskCalendar({tasks,onAdd,onEdit,onLink,initialWorkTrayOpen}:Props){
+ const {data,update,notify}=useStore(),[selected,setSelected]=useState<string|null>(null),[remove,setRemove]=useState<Task|null>(null),[unscheduledOpen,setUnscheduledOpen]=useState(()=>initialWorkTrayOpen??tasks.some(task=>!task.done&&(!task.time||!taskToCalendarEvent(task,data.subjects)))),[error,setError]=useState('');
  const events=useMemo(()=>tasks.map(task=>taskToCalendarEvent(task,data.subjects)).filter((event):event is NonNullable<typeof event>=>!!event),[tasks,data.subjects]);
  const toSchedule=tasks.filter(task=>!task.done&&(!task.time||!events.some(event=>event.id===task.id)));
  const resources=useMemo<EventCalendarResource[]>(()=>{
