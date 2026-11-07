@@ -11,6 +11,7 @@ export const MAX_ATTACHMENT_TEXT = 120000;
 export const MAX_CHAT_CONTEXT = 500000;
 export const MAX_MESSAGE_CONTEXTS = 23; // Three connectors plus twenty explicitly selected task cards.
 export const defaultChatSettings = (): ChatSettingsData => ({ provider: 'gemini', endpoint: 'https://generativelanguage.googleapis.com/v1beta', model: '', apiKey: '', rememberKey: false });
+let runtimeChatSettings: ChatSettingsData | null = null;
 
 export function validateChatEndpoint(value: string) {
   let url: URL;
@@ -32,6 +33,7 @@ export function validateChatSettings(settings: ChatSettingsData, requireKey = tr
   return { ...settings, endpoint, model, apiKey, rememberKey: !!settings.rememberKey };
 }
 export function loadChatSettings(): ChatSettingsData {
+  if (runtimeChatSettings) return { ...runtimeChatSettings };
   const defaults = defaultChatSettings();
   try {
     const stored = JSON.parse(localStorage.getItem(CHAT_SETTINGS_KEY) || 'null');
@@ -45,10 +47,23 @@ export function saveChatSettings(settings: ChatSettingsData) {
   if (valid.rememberKey) { if (apiKey) localStorage.setItem(CHAT_SECRET_KEY, apiKey); else localStorage.removeItem(CHAT_SECRET_KEY); sessionStorage.removeItem(CHAT_SECRET_KEY); }
   else { if (apiKey) sessionStorage.setItem(CHAT_SECRET_KEY, apiKey); else sessionStorage.removeItem(CHAT_SECRET_KEY); localStorage.removeItem(CHAT_SECRET_KEY); }
   localStorage.setItem(CHAT_SETTINGS_KEY, JSON.stringify(preferences));
+  runtimeChatSettings = null;
   window.dispatchEvent(new Event('verdant:chat-settings-change'));
   return valid;
 }
+/** Shared profile/chat configuration. Only preferences are persisted; the key is held in memory. */
+export function initializeChatSettingsForSession(settings: ChatSettingsData) {
+  const valid = { ...validateChatSettings(settings, false), rememberKey: false };
+  const { apiKey: _secret, ...preferences } = valid;
+  localStorage.removeItem(CHAT_SECRET_KEY);
+  sessionStorage.removeItem(CHAT_SECRET_KEY);
+  localStorage.setItem(CHAT_SETTINGS_KEY, JSON.stringify(preferences));
+  runtimeChatSettings = valid;
+  window.dispatchEvent(new Event('verdant:chat-settings-change'));
+  return { ...valid };
+}
 export function clearChatApiKey() {
+  if (runtimeChatSettings) runtimeChatSettings = { ...runtimeChatSettings, apiKey: '', rememberKey: false };
   localStorage.removeItem(CHAT_SECRET_KEY); sessionStorage.removeItem(CHAT_SECRET_KEY);
   const stored = localStorage.getItem(CHAT_SETTINGS_KEY);
   if (stored) { try { const value = JSON.parse(stored); localStorage.setItem(CHAT_SETTINGS_KEY, JSON.stringify({ ...value, rememberKey: false })); } catch { /* The secret was removed even if preferences are damaged. */ } }

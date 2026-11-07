@@ -8,7 +8,7 @@ const CLOUD_SCOPE = 'https://www.googleapis.com/auth/cloud-platform';
 type Status = 'idle' | 'starting' | 'listening' | 'processing' | 'authorizing';
 type RecognitionResult = { isFinal: boolean; [index: number]: { transcript: string } | undefined };
 type RecognitionEvent = { results: ArrayLike<RecognitionResult> };
-type BrowserRecognition = {
+export type BrowserRecognition = {
   lang: string; continuous: boolean; interimResults: boolean;
   onstart: (() => void) | null; onresult: ((event: RecognitionEvent) => void) | null;
   onerror: ((event: { error: string }) => void) | null; onend: (() => void) | null;
@@ -16,7 +16,7 @@ type BrowserRecognition = {
 };
 type TokenResponse = { access_token?: string; expires_in?: number; scope?: string; error?: string };
 type GoogleOAuth = { initTokenClient(config: { client_id: string; scope: string; include_granted_scopes: boolean; callback: (response: TokenResponse) => void; error_callback: (error: { type: string }) => void }): { requestAccessToken(config?: { prompt?: string }): void } };
-const speechWindow = () => window as unknown as { SpeechRecognition?: new () => BrowserRecognition; webkitSpeechRecognition?: new () => BrowserRecognition; google?: { accounts?: { oauth2?: GoogleOAuth } }; webkitAudioContext?: typeof AudioContext };
+export const speechWindow = () => window as unknown as { SpeechRecognition?: new () => BrowserRecognition; webkitSpeechRecognition?: new () => BrowserRecognition; google?: { accounts?: { oauth2?: GoogleOAuth } }; webkitAudioContext?: typeof AudioContext };
 
 export function appendTranscript(current: string, fragment: string): string {
   const spoken = fragment.trim().replace(/\s+/g, ' ');
@@ -72,7 +72,7 @@ function loadGoogleIdentity(): Promise<GoogleOAuth> {
   }).catch(error => { identityPromise = null; throw error; });
   return identityPromise;
 }
-const recognitionMessage = (code: string) => ({ 'not-allowed': 'Microphone access was denied. Allow the microphone in your browser’s site settings, then try again.', 'service-not-allowed': 'This browser’s speech service is unavailable. Try Chrome or the Google Cloud option.', 'audio-capture': 'No microphone is available. Connect one and try again.', 'no-speech': 'No speech was heard. Try again and speak clearly.', network: 'The browser speech service could not connect. Check your connection and try again.', 'language-not-supported': 'This speech service does not support the selected language. Try the other language or Google Cloud.' }[code] || 'Dictation stopped. Try again or type your task.');
+export const recognitionMessage = (code: string) => ({ 'not-allowed': 'Microphone access was denied. Allow the microphone in your browser’s site settings, then try again.', 'service-not-allowed': 'This browser’s speech service is unavailable. Try Chrome or the Google Cloud option.', 'audio-capture': 'No microphone is available. Connect one and try again.', 'no-speech': 'No speech was heard. Try again and speak clearly.', network: 'The browser speech service could not connect. Check your connection and try again.', 'language-not-supported': 'This speech service does not support the selected language. Try the other language or Google Cloud.' }[code] || 'Dictation stopped. Try again or type your task.');
 
 export function TaskDictation({ onTranscript, onBusyChange, label = 'Dictate task', targetLabel = 'task title' }: { onTranscript: (text: string) => void; onBusyChange?: (busy: boolean) => void; label?: string; targetLabel?: string }) {
   const id = useId(), [provider, setProvider] = useState<'browser' | 'google'>('browser'), [language, setLanguage] = useState('en-IN');

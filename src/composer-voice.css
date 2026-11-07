@@ -1,0 +1,37 @@
+.composer-voice { position: relative; display: inline-flex; flex: 0 0 auto; }
+.full-page-chat .composer-mic {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 50%;
+  transition: transform 220ms var(--ease-spring-soft), background-color 180ms var(--ease-out-expo), box-shadow 200ms var(--ease-out-expo);
+}
+.full-page-chat .composer-mic:hover:not(:disabled) { transform: scale(1.08); box-shadow: 0 0 16px #8e69ff40; }
+.full-page-chat .composer-mic:active:not(:disabled) { transform: scale(.97); }
+.full-page-chat .composer-mic.is-recording { background: #7350d3; color: white; border-color: #ba9cff; box-shadow: 0 0 16px #9573ff70; }
+.composer-mic.is-recording::before, .composer-mic.is-recording::after {
+  content: ''; position: absolute; inset: -2px; border-radius: inherit;
+  border: 1px solid #ad90ff; pointer-events: none;
+  animation: composer-ripple 1.75s var(--ease-out-expo) infinite;
+}
+.composer-mic.is-recording::after { animation-delay: .72s; }
+@keyframes composer-ripple { from { opacity: .65; transform: scale(1); } to { opacity: 0; transform: scale(1.48); } }
+.composer-mic-wave { display: flex; align-items: center; gap: 1.5px; height: 18px; }
+.composer-mic-wave i { width: 1.5px; height: 100%; border-radius: 3px; background: currentColor; transform: scaleY(var(--voice-level, .25)); transition: transform 60ms ease-out; }
+.composer-mic-wave i:nth-child(1), .composer-mic-wave i:nth-child(7) { height: 65%; }
+.composer-voice-status {
+  position: absolute; z-index: 3; bottom: calc(100% + 13px); right: 0;
+  width: max-content; max-width: min(280px, 62vw); overflow-wrap: anywhere;
+  padding: 8px 11px; border-radius: 10px; font-size: 12px; line-height: 1.45;
+  background: var(--surface-raised); border: 1px solid var(--control-border); color: var(--text-primary);
+  box-shadow: 0 4px 18px #0b09142c;
+}
+.composer-voice-status.is-error { border-color: #bd777c; }
+@media (prefers-reduced-motion: reduce) {
+  .full-page-chat .composer-mic, .composer-mic-wave i { transition: none; }
+  .full-page-chat .composer-mic:hover:not(:disabled), .full-page-chat .composer-mic:active:not(:disabled) { transform: none; }
+  .composer-mic.is-recording::before, .composer-mic.is-recording::after { animation: none; }
+}

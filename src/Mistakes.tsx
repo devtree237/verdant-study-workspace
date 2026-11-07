@@ -6,7 +6,7 @@ import { BookOpen, Search, ArrowRight, Eye, EyeOff, RotateCcw, Sparkles, Calenda
 import type { Mistake } from './model';
 import { categories, day, dateLabel, linkedTask, reviewResult, uid } from './model';
 import { fileStore, useStore } from './store';
-import { Empty, Markdown, Modal, gsap, useGSAP, Flip, duration, CountUp } from './ui';
+import { Empty, Markdown, Modal, gsap, useGSAP, Flip, duration } from './ui';
 import './mistake-book.css';
 
 export function Attachment({ id, alt = 'Attached question or working' }: { id: string; alt?: string }) {
@@ -101,10 +101,7 @@ export function Mistakes({ search, onSearchChange, selectedId, clearSelection, o
   const activeFilters = subject !== 'all' || category !== 'all' || status !== 'all' || !!query || !!selectedId;
   function clearFilters() { change(() => { setSubject('all'); setCategory('all'); setStatus('all'); setQuery(''); clearSelection(); }); }
   return <div className="mistake-book" ref={ref}>
-    <div className="mistake-stat-strip">
-      <div className="mistake-stat is-captured"><span className="mistake-stat-label"><i />Captured</span><b><CountUp value={data.mistakes.length} /></b><p>mistakes to learn from</p></div>
-      <div className="mistake-stat is-growing"><span className="mistake-stat-label"><i />Growing</span><b><CountUp value={data.mistakes.filter(mistake => mistake.status === 'In progress').length} /></b><p>understanding in progress</p></div>
-      <div className="mistake-stat is-understood"><span className="mistake-stat-label"><i />Understood</span><b><CountUp value={data.mistakes.filter(mistake => mistake.status === 'Mastered').length} /></b><p>marked as mastered</p></div>
+    <div className="mistake-focus-overview">
       <div className="mistake-stat mistake-focus-stat"><span className="mistake-stat-label"><SlidersHorizontal size={11} />Where to focus</span><div className="mistake-distribution" aria-label="Error categories across all captured mistakes">{data.mistakes.length ? counts.filter(item => item.count > 0).map(item => <DistributionSegment key={item.name} count={item.count} total={data.mistakes.length} category={item.index} name={item.name} onClick={() => change(() => { setCategory(category === item.name ? 'all' : item.name); clearSelection(); })} active={category === item.name} />) : <span className="mistake-distribution-empty" />}</div><div className="mistake-distribution-legend">{counts.map(item => <button type="button" key={item.name} className={category === item.name ? 'active' : ''} aria-pressed={category === item.name} onClick={() => change(() => { setCategory(category === item.name ? 'all' : item.name); clearSelection(); })} title={`${item.name}: ${item.count} of ${data.mistakes.length}`}><i className={`error-tone-${item.index % 5}`} /><span><b>{Math.round(item.count / Math.max(data.mistakes.length, 1) * 100)}%</b> {shortCategory(item.name)}</span></button>)}</div></div>
     </div>
     <div className="learning-banner mistake-due-banner"><div className="mistake-due-icon"><BookOpen size={20} aria-hidden="true" /></div><div><h2>{due ? `${due} ${due === 1 ? 'mistake is' : 'mistakes are'} due for review` : 'You’re up to date'}</h2><p>{due ? 'A fresh attempt turns a previous mistake into understanding.' : 'Your scheduled reviews will appear here when they’re due.'}</p></div><button type="button" className="mistake-review-due" disabled={!due} onClick={() => change(() => { setStatus('due'); setSubject('all'); setCategory('all'); setQuery(''); clearSelection(); })}>Review due cards<ArrowRight size={14} aria-hidden="true" /></button></div>

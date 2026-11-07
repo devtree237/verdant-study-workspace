@@ -289,7 +289,7 @@ function EventCalendarTimeGrid({
             viewConfig.classNames?.timeGridHeader
           )}
         >
-          <div className="w-(--ec-gutter-width,4.5rem) shrink-0 border-e" />
+          <div className="w-(--ec-gutter-width,4.5rem) shrink-0 border-e"><span className="calendar-timezone-label">{new Intl.DateTimeFormat('en',{timeZone:settings.timeZone,timeZoneName:'shortOffset'}).formatToParts(new Date()).find(part=>part.type==='timeZoneName')?.value}</span></div>
           <div className="grid min-w-0 flex-1" style={{ gridTemplateColumns }}>
             {days.map((day) => (
               <EventCalendarDayHeader
