@@ -102,3 +102,95 @@
 @media(max-width:900px){.calendar-local-sidebar{position:absolute;z-index:60;inset:0 auto 0 0;width:262px;padding:22px 24px;background:var(--surface);box-shadow:10px 0 40px #06020e40;border-right:1px solid var(--control-border)}.calendar-sidebar-scrim{display:block;position:absolute;inset:0;z-index:55;background:#04020b66;backdrop-filter:blur(2px)}.calendar-shell-canvas,.calendar-shell-body:not(.is-sidebar-open) .calendar-shell-canvas{margin:8px 12px 0;border-radius:20px 20px 0 0}}
 @media(max-width:700px){.calendar-shell-header{gap:6px;padding:12px 10px;min-height:118px;flex-wrap:wrap;align-content:center}.calendar-brand{margin-right:3px}.calendar-brand-date{width:29px;height:33px;font-size:20px}.calendar-header-icon{width:32px;height:34px}.calendar-header-month{font-size:18px;flex:1;text-align:right;padding-right:6px}.calendar-header-today{min-height:34px;padding:5px 15px;font-size:11px}.calendar-header-period>.calendar-header-icon{width:24px}.calendar-header-tools{flex-basis:100%;justify-content:flex-end;gap:8px;margin-top:2px}.calendar-header-tools>.calendar-header-icon:first-child{margin-right:auto}.calendar-help-button{display:grid}.calendar-shell-view,.calendar-shell-view>.flow-select-shell{min-width:86px}.calendar-shell-view>.flow-select-shell,.calendar-shell-view select{height:35px!important;min-height:35px!important;font-size:11px!important}.calendar-mode-pill>button{height:35px;width:42px}.calendar-profile{width:31px;height:31px;font-size:14px;margin-right:4px}.calendar-shell-settings>summary{height:35px}.calendar-fullpage{--ec-gutter-width:3.5rem!important}.calendar-shell-canvas,.calendar-shell-body:not(.is-sidebar-open) .calendar-shell-canvas{margin:3px 6px 0;border-radius:15px 15px 0 0}.calendar-fullpage .verdant-calendar-content [data-slot=event-calendar-day-header]{min-height:80px}.calendar-day-heading{gap:4px;padding:10px 0}.calendar-day-heading>strong{font-size:25px;min-width:40px;min-height:40px}.calendar-day-heading>span{font-size:9px}.calendar-fullpage .calendar-timezone-label{font-size:8px}.calendar-fullpage .verdant-calendar-content [data-slot=event-calendar-time-gutter]{font-size:9px}.calendar-fullpage>.task-calendar-footer{gap:7px;padding:9px 12px;min-height:34px}.calendar-fullpage>.task-calendar-footer>span:nth-child(2){display:none}.calendar-shell-search{padding:9px 16px}.calendar-shell-settings>div{right:-110px}.calendar-fullpage .calendar-content-wrap>.verdant-calendar-content[data-view=week]{min-width:660px}}
 @media(prefers-reduced-motion:reduce){.calendar-full-shell *{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+
+/* Keep the sidebar mounted so its exit and the grid's expansion share one
+   transition, without remounting the calendar or resetting its scroll position. */
+.calendar-shell-body {
+  --calendar-sidebar-width: 264px;
+  --calendar-sidebar-padding: 22px 24px 22px 26px;
+  --calendar-sidebar-duration: 320ms;
+  --calendar-sidebar-ease: cubic-bezier(.16, 1, .3, 1);
+}
+.calendar-sidebar-presence {
+  flex: 0 0 0;
+  width: 0;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  visibility: hidden;
+  transition: flex-basis var(--calendar-sidebar-duration) var(--calendar-sidebar-ease),
+    width var(--calendar-sidebar-duration) var(--calendar-sidebar-ease),
+    opacity 200ms ease,
+    visibility 0s var(--calendar-sidebar-duration);
+}
+.calendar-sidebar-presence.is-open {
+  flex-basis: var(--calendar-sidebar-width);
+  width: var(--calendar-sidebar-width);
+  opacity: 1;
+  visibility: visible;
+  transition-delay: 0s;
+}
+.calendar-sidebar-presence > .calendar-local-sidebar {
+  position: relative;
+  inset: auto;
+  width: var(--calendar-sidebar-width);
+  height: 100%;
+  padding: var(--calendar-sidebar-padding);
+  animation: none;
+  transform: translateX(-12px);
+  transition: transform var(--calendar-sidebar-duration) var(--calendar-sidebar-ease);
+}
+.calendar-sidebar-presence.is-open > .calendar-local-sidebar { transform: translateX(0); }
+.calendar-shell-canvas { transition: margin-left var(--calendar-sidebar-duration) var(--calendar-sidebar-ease); }
+.calendar-sidebar-scrim {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 240ms ease, visibility 0s var(--calendar-sidebar-duration);
+}
+.calendar-sidebar-scrim.is-open {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transition-delay: 0s;
+}
+@media (min-width: 1600px) {
+  .calendar-shell-body { --calendar-sidebar-width: 284px; --calendar-sidebar-padding: 22px 30px; }
+}
+@media (max-width: 1250px) {
+  .calendar-shell-body { --calendar-sidebar-width: 238px; --calendar-sidebar-padding: 20px; }
+}
+@media (max-width: 1050px) {
+  .calendar-shell-body { --calendar-sidebar-width: 224px; --calendar-sidebar-padding: 18px; }
+}
+@media (max-width: 900px) {
+  .calendar-shell-body { --calendar-sidebar-width: 262px; --calendar-sidebar-padding: 22px 24px; }
+  .calendar-sidebar-presence,
+  .calendar-sidebar-presence.is-open {
+    position: absolute;
+    z-index: 60;
+    inset: 0 auto 0 0;
+    flex: none;
+    width: var(--calendar-sidebar-width);
+    max-width: calc(100% - 44px);
+    transform: translateX(-100%);
+    transition: transform var(--calendar-sidebar-duration) var(--calendar-sidebar-ease),
+      opacity 200ms ease, visibility 0s var(--calendar-sidebar-duration);
+  }
+  .calendar-sidebar-presence.is-open {
+    transform: translateX(0);
+    transition-delay: 0s;
+  }
+  .calendar-sidebar-presence > .calendar-local-sidebar {
+    width: 100%;
+    transform: none;
+    transition: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .calendar-sidebar-presence,
+  .calendar-sidebar-presence > .calendar-local-sidebar,
+  .calendar-shell-canvas,
+  .calendar-sidebar-scrim { transition: none; }
+}

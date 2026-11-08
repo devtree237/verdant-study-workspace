@@ -1,0 +1,92 @@
+.modal-backdrop .modal-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.modal-panel > .modal-header {
+  position: relative;
+  top: auto;
+  flex: 0 0 auto;
+  min-height: 68px;
+  background: var(--surface, #fff);
+}
+
+.modal-panel > .modal-header h2 {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.modal-panel > .modal-header > .icon-btn {
+  flex-shrink: 0;
+}
+
+.modal-content {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scroll-padding-block: 20px;
+}
+
+.modal-content .workspace-settings-body {
+  grid-auto-rows: max-content;
+  align-content: start;
+  gap: 20px;
+  padding: 24px;
+}
+
+.modal-content .workspace-settings-actions {
+  align-items: center;
+  gap: 12px;
+}
+
+.modal-panel .task-entry-body {
+  padding: 24px;
+}
+
+.task-entry-title {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.modal-panel .task-form .quick-title {
+  box-sizing: border-box;
+  min-height: 52px !important;
+  padding: 12px 14px !important;
+  border: 1px solid var(--control-border, #cbdacf) !important;
+  border-radius: 8px !important;
+  color: var(--text-primary, #345841) !important;
+  background: var(--control-bg, var(--surface, #fff));
+  font-size: 16px !important;
+  line-height: 1.5;
+}
+
+.modal-panel .task-form .quick-title:focus-visible {
+  border-color: var(--accent, #107c41) !important;
+  outline: 2px solid var(--accent-soft, #c5e0d0);
+  outline-offset: 2px;
+}
+
+.task-entry-hint {
+  margin: 0 2px;
+  color: var(--text-secondary, #698271);
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+@media (max-width: 600px) {
+  .modal-panel .task-entry-body {
+    padding: 20px;
+  }
+
+  .modal-panel .task-form .quick-title {
+    font-size: 15px !important;
+  }
+}

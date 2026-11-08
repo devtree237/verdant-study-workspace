@@ -30,4 +30,11 @@ describe('durable chat migration', () => {
   it('validates before writing new history, leaving storage untouched on invalid input', async () => {
     await expect(saveChatConversations([{ ...chats[0], id: '' }])).rejects.toThrow('invalid'); expect(setStoredValue).not.toHaveBeenCalled();
   });
+  it('round-trips sidebar organization through durable storage', async () => {
+    const organized = [{ ...chats[0], project: 'My project', section: 'Revision', pinned: true, unread: true, archived: false }];
+    await saveChatConversations(organized);
+    const saved = vi.mocked(setStoredValue).mock.calls[0][1];
+    vi.mocked(getStoredValue).mockResolvedValue(saved);
+    expect(await loadChatConversations()).toEqual({ chats: organized, error: '' });
+  });
 });

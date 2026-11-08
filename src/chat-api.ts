@@ -3,7 +3,7 @@ export type ChatSettingsData = { provider: ChatProvider; endpoint: string; model
 export type ChatAttachment = { id: string; name: string; kind: string; text: string; size: number; pages: number };
 export type ChatContextSnapshot = { id: string; label: string; text: string };
 export type ChatMessage = { id: string; role: 'user' | 'assistant'; content: string; createdAt: number; attachments?: ChatAttachment[]; contexts?: ChatContextSnapshot[]; provider?: string; model?: string };
-export type Conversation = { id: string; title: string; messages: ChatMessage[]; createdAt: number; updatedAt: number; subject?: string };
+export type Conversation = { id: string; title: string; messages: ChatMessage[]; createdAt: number; updatedAt: number; subject?: string; project?: string; section?: string; pinned?: boolean; unread?: boolean; archived?: boolean };
 export const CHAT_SETTINGS_KEY = 'verdant.chat.settings.v1';
 export const CHAT_SECRET_KEY = 'verdant.chat.api-key.v1';
 export const CHAT_HISTORY_KEY = 'verdant.chat.history.v1';
@@ -122,6 +122,12 @@ export function validateChatHistory(value: unknown): Conversation[] {
   return raw.conversations.map(entry => {
     const chat = entry as Conversation;
     if (!chat || typeof chat.id !== 'string' || !chat.id || ids.has(chat.id) || typeof chat.title !== 'string' || !Array.isArray(chat.messages) || chat.messages.length > 2000 || !Number.isFinite(chat.createdAt) || !Number.isFinite(chat.updatedAt)) throw new Error('A saved conversation is invalid.');
+    for (const key of ['project', 'section'] as const) {
+      if (chat[key] !== undefined && (typeof chat[key] !== 'string' || !chat[key].trim() || chat[key].length > 80 || /[\u0000-\u001f]/.test(chat[key]))) throw new Error('A saved conversation group is invalid.');
+    }
+    for (const key of ['pinned', 'unread', 'archived'] as const) {
+      if (chat[key] !== undefined && typeof chat[key] !== 'boolean') throw new Error('A saved conversation status is invalid.');
+    }
     ids.add(chat.id); const messageIds = new Set<string>();
     const messages = chat.messages.map(message => {
       if (!message || typeof message.id !== 'string' || messageIds.has(message.id) || !['user', 'assistant'].includes(message.role) || typeof message.content !== 'string' || message.content.length > MAX_CHAT_CONTEXT || !Number.isFinite(message.createdAt)) throw new Error('A saved message is invalid.');
@@ -130,6 +136,6 @@ export function validateChatHistory(value: unknown): Conversation[] {
       if (message.contexts !== undefined && (!Array.isArray(message.contexts) || message.contexts.length > MAX_MESSAGE_CONTEXTS || new Set(message.contexts.map(context => context?.id)).size !== message.contexts.length || message.contexts.some(context => !context || typeof context.id !== 'string' || !context.id || typeof context.label !== 'string' || context.label.length > 100 || typeof context.text !== 'string' || context.text.length > MAX_ATTACHMENT_TEXT))) throw new Error('A saved workspace context is invalid.');
       return { id: message.id, role: message.role, content: message.content, createdAt: message.createdAt, ...(message.attachments ? { attachments: message.attachments } : {}), ...(message.contexts ? { contexts: message.contexts.map(context => ({ id: context.id, label: context.label, text: context.text })) } : {}), ...(typeof message.provider === 'string' ? { provider: message.provider } : {}), ...(typeof message.model === 'string' ? { model: message.model } : {}) };
     });
-    return { id: chat.id, title: chat.title, messages, createdAt: chat.createdAt, updatedAt: chat.updatedAt, ...(typeof chat.subject === 'string' ? { subject: chat.subject } : {}) };
+    return { id: chat.id, title: chat.title, messages, createdAt: chat.createdAt, updatedAt: chat.updatedAt, ...(typeof chat.subject === 'string' ? { subject: chat.subject } : {}), ...(chat.project !== undefined ? { project: chat.project } : {}), ...(chat.section !== undefined ? { section: chat.section } : {}), ...(chat.pinned !== undefined ? { pinned: chat.pinned } : {}), ...(chat.unread !== undefined ? { unread: chat.unread } : {}), ...(chat.archived !== undefined ? { archived: chat.archived } : {}) };
   });
 }
