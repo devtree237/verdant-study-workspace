@@ -10,4 +10,5 @@ import './theme.css';
 import App from './App';
 import './dark-theme.css';
 import './ambient-theme.css';
+import './notebook-theme.css';
 ReactDOM.createRoot(document.getElementById('root')!).render(<React.StrictMode><App /></React.StrictMode>);

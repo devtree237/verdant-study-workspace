@@ -1,0 +1,112 @@
+/* The notebook references set the canvas, text, and action roles. Keep Verdant's
+   existing card content, status colors, charts, and dark surface palette. */
+:root {
+  --notebook-radius: 20px;
+  --notebook-gutter: clamp(18px, 3.3vw, 58px);
+}
+
+:root[data-theme='light'] {
+  --canvas: #f4f3f9;
+  --surface: #fff;
+  --surface-raised: #fff;
+  --surface-faint: #f8f7fb;
+  --surface-soft: #ede8fb;
+  --surface-hover: #f8f6fe;
+  --control-bg: #fff;
+  --control-border: #dad8e5;
+  --heading: #101f36;
+  --ink: #17263a;
+  --muted: #546274;
+  --border: #e3e0ed;
+  --mint: #edf7f2;
+  --accent: #5740cf;
+  --accent-rgb: 87, 64, 207;
+  --accent-button: #5740cf;
+  --accent-button-hover: #4933ba;
+  --accent-hover: #4933ba;
+  --accent-strong: #4530a9;
+  --accent-soft: #eee9fc;
+  --accent-soft-hover: #e3dbfc;
+  --notebook-shadow: 0 10px 32px -22px #18214238;
+  --chat-user-surface: #ede8fb;
+  --chat-assistant-surface: #f8f7fb;
+  color: var(--ink);
+  background: var(--canvas);
+}
+
+:root[data-theme='light'] :is(body,.app-shell,.main-shell) {
+  color: var(--ink);
+  background-color: var(--canvas);
+}
+
+.app-shell:not(.is-calendar-workspace) > .main-shell > main:not(.chat-page,.focus-route-page,.calendar-page) {
+  padding-inline: var(--notebook-gutter);
+  padding-top: clamp(25px, 3.2vw, 52px);
+}
+
+.app-shell .page-heading { margin-bottom: clamp(22px, 2.4vw, 36px); }
+.app-shell .page-heading h1 {
+  font-size: clamp(30px, 3vw, 46px);
+  line-height: 1.13;
+  font-weight: 600;
+  letter-spacing: -.048em;
+  text-wrap: balance;
+}
+.app-shell .page-heading p { font-size: clamp(13px, 1.15vw, 16px); line-height: 1.6; }
+.app-shell .page-heading .page-eyebrow { letter-spacing: .075em; }
+.app-shell .page-heading-actions .button { min-height: 43px; padding-inline: 18px; border-radius: 999px; }
+
+:root[data-theme='light'] .app-shell .page-heading p { color: var(--muted); }
+
+.app-shell :is(.daily-progress,.analytics-hero,.learning-banner) { border-radius: var(--notebook-radius); }
+:root[data-theme='light'] .app-shell :is(.daily-progress,.analytics-hero,.learning-banner) {
+  background: var(--surface-soft);
+  border-color: #dfd5f8;
+  box-shadow: none;
+  animation: none;
+}
+:root[data-theme='light'] .app-shell :is(.daily-progress,.analytics-hero,.learning-banner) p { color: var(--muted); }
+.app-shell .daily-progress { min-height: 105px; padding: clamp(16px, 2.2vw, 26px); gap: 15px; }
+.app-shell .daily-progress-copy h2 { font-size: clamp(14px, 1.5vw, 19px); font-weight: 600; letter-spacing: -.025em; }
+.app-shell .daily-progress-copy p { line-height: 1.5; }
+:root[data-theme='light'] .app-shell .daily-icon { background: #ffffffbc; border-color: #e1d9f5; }
+
+.app-shell :is(.folder-card,.label-card,.resource-table,.analytics-panel,.test-card,.test-empty-wrap,.test-history,.modal-panel,.focus-page .focus-card) {
+  border-radius: var(--notebook-radius);
+}
+.app-shell :is(.analytics-stats>div,.test-summary>div,.module-summary>div) { border-radius: 15px; }
+:root[data-theme='light'] .app-shell :is(.folder-card,.label-card,.resource-table,.analytics-panel,.test-card,.test-empty-wrap,.test-history,.focus-page .focus-card) {
+  background-color: var(--surface);
+  border-color: var(--border);
+  box-shadow: var(--notebook-shadow);
+}
+:root[data-theme='light'] .app-shell :is(.folder-card,.label-card):hover { border-color: #c9b9f0; background-color: var(--surface-hover); }
+:root[data-theme='light'] .app-shell :is(.task-title,.folder-title,.resource-name b,.history-row>span b,.test-card h3,.test-history-row>span:first-child b) { color: var(--ink); }
+:root[data-theme='light'] .app-shell .task-done .task-title { color: var(--muted); }
+
+/* Task rows keep their current controls and grouping, with a quiet card edge. */
+:root[data-theme='light'] .app-shell .task-groups .task-card {
+  margin-top: 7px;
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  background-color: var(--surface);
+}
+:root[data-theme='light'] .app-shell .task-groups .task-card:hover { background-color: var(--surface-hover); border-color: #d8cbee; }
+:root[data-theme='light'] .app-shell .task-groups .task-card:hover .task-actions,
+:root[data-theme='light'] .app-shell .task-groups .task-card:focus-within .task-actions {
+  background-color: inherit;
+  box-shadow: none;
+}
+:root[data-theme='light'] .app-shell .page-body .empty-state {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--notebook-radius);
+  color: var(--muted);
+}
+
+@media (max-width: 600px) {
+  :root { --notebook-radius: 16px; }
+  .app-shell .page-heading-actions .button { min-height: 40px; padding-inline: 14px; }
+  .app-shell .daily-progress { gap: 10px; }
+  .app-shell .daily-progress-copy h2 { line-height: 1.35; }
+}

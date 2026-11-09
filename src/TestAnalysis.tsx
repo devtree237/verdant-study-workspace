@@ -1,7 +1,7 @@
 import { SmoothSelect } from './components/ui/SmoothSelect';
 import { useMemo, useRef, useState } from 'react';
-import { ArrowLeft, ArrowRight, BookOpen, Check, ChevronRight, Download, FileText, Flag, Info, Printer, RotateCcw, Search, Target, Trophy, Upload, X } from 'lucide-react';
-import type { AnalysisGroup, CohortRecord, QuestionAnalysis, TestAttempt } from './testing-model';
+import { ArrowLeft, ArrowRight, BookOpen, ChevronRight, Download, FileText, Flag, Info, Leaf, Printer, RotateCcw, Search, Share2, Trophy, Upload } from 'lucide-react';
+import type { CohortRecord, QuestionAnalysis, TestAttempt } from './testing-model';
 import { analyseAttempt, compareCohort, parseCohortJSON, scoreQuestion, paperFingerprint } from './testing-model';
 import { categories, day, uid } from './model';
 import { useStore } from './store';
@@ -9,8 +9,9 @@ import { CountUp, Empty, Markdown, Modal, duration, gsap, useGSAP } from './ui';
 import './test-analysis.css';
 import { TimeAnalysis } from './TimeAnalysis';
 import { TestBreakdown, SubjectTimeCharts, TimeQualityChart, TimeJourneyCharts, DifficultyCharts, ErrorOptimizationChart, AttemptEfficiencyCharts } from './ResultCharts';
+import './report-workspace.css';
 
-type Props={attempt:TestAttempt;cohort:CohortRecord[];onCohortChange:(rows:CohortRecord[])=>void;onBack:()=>void;onRetake:()=>void};
+type Props={attempt:TestAttempt;cohort:CohortRecord[];onCohortChange:(rows:CohortRecord[])=>void;onBack:()=>void;onRetake:()=>void;integritySummary?:React.ReactNode};
 type Peer=CohortRecord&{questionResults?:{questionId:string;status:string;timeSeconds:number;answeredAtSeconds?:number}[];paperId?:string};
 const sections=[['overview','Overview'],['performance','Test breakdown'],['time','Time analysis'],['attempts','Attempts'],['difficulty','Difficulty'],['movement','Subject movement'],['errors','Errors'],['journey','Question journey'],['questions','Question by question']];
 const fmt=(seconds:number)=>{const s=Math.max(0,Math.round(seconds));return s<60?`${s}s`:`${Math.floor(s/60)}m ${s%60}s`;};
@@ -24,7 +25,21 @@ function Panel({id,title,description,children}:{id?:string;title:string;descript
 function MiniBars({rows,suffix='',max}:{rows:{name:string;value:number}[];suffix?:string;max?:number}){const highest=max||Math.max(1,...rows.map(r=>r.value));return <div className="analysis-mini-bars">{rows.map(row=><div key={row.name}><div><span>{row.name}</span><b>{decimal(row.value)}{suffix}</b></div><div className="analysis-bar-track"><span style={{width:`${Math.max(0,Math.min(100,row.value/highest*100))}%`}}/></div></div>)}</div>;}
 function answerText(row:QuestionAnalysis,correct=false){const q=row.question;if(q.kind==='numeric')return correct?String(q.numericAnswer??''):typeof row.response.value==='string'&&row.response.value.trim()?row.response.value:'No answer';const values=correct?q.correctAnswers:Array.isArray(row.response.value)?row.response.value:[];return values.length?values.map(i=>`${String.fromCharCode(65+i)}. ${q.options[i]}`).join('\n\n'):'No answer';}
 
-export function TestAnalysis({attempt,cohort,onCohortChange,onBack,onRetake}:Props){
+function StudyNotebook() {
+ return <svg className="analysis-notebook" viewBox="0 0 245 165" aria-hidden="true" focusable="false">
+   <ellipse cx="125" cy="147" rx="99" ry="9" className="analysis-art-shadow"/>
+   <g stroke="currentColor" strokeWidth="2.1" strokeLinejoin="round" strokeLinecap="round">
+     <path d="M45 82c30-9 60-3 78 14 21-17 52-22 78-14l12 48c-33-9-68-4-90 10-24-14-57-19-90-10z" className="analysis-art-cover"/>
+     <path d="M48 75c30-7 56-3 75 13 20-16 48-20 75-13l11 47c-30-6-62-1-86 13-23-14-55-19-86-13z" className="analysis-art-page"/>
+     <path d="M123 89v45M53 88c22-3 42 0 57 9m-60 3c22-2 42 1 56 9m-59 3c16-1 34 1 46 5m42-19c17-9 36-12 57-10m-54 21c16-8 34-11 55-9m-44 17c13-4 30-6 48-5" fill="none"/>
+     <path d="M166 65c-2-21 2-36 12-47m-11 40c-10-1-18-7-23-18m25 2c12-1 21-7 26-17" fill="none"/>
+     <path d="M173 39c-6-13-2-25 10-32 2 13-1 23-10 32zm-9 18c-11 0-22-7-25-20 14 1 21 8 25 20zm7-12c3-12 11-20 26-21-4 13-14 20-26 21z" className="analysis-art-leaf"/>
+     <path d="M70 23c1 7 4 11 10 13-6 2-9 6-10 13-1-7-4-11-10-13 6-2 9-6 10-13zM106 48c1 4 3 6 6 7-3 1-5 3-6 7-1-4-3-6-6-7 3-1 5-3 6-7z" className="analysis-art-page"/>
+   </g>
+ </svg>;
+}
+
+export function TestAnalysis({attempt,cohort,onCohortChange,onBack,onRetake,integritySummary}:Props){
  const {data,update,notify}=useStore();
  const [tab,setTab]=useState<'personal'|'comparative'>('personal');
  const [section,setSection]=useState('overview');
@@ -41,8 +56,6 @@ export function TestAnalysis({attempt,cohort,onCohortChange,onBack,onRetake}:Pro
  const annotated=useMemo(()=>({...attempt,responses:Object.fromEntries(Object.entries(attempt.responses).map(([id,r])=>[id,{...r,errorCategory:tags[id]||r.errorCategory}]))}),[attempt,tags]);
  const analysis=useMemo(()=>analyseAttempt(annotated),[annotated]);
  const comparison=useMemo(()=>compareCohort(analysis,cohort),[analysis,cohort]);
- const overall:AnalysisGroup={...analysis,name:'Overall',total:attempt.paper.questions.length};
- const groups=[overall,...analysis.subjects];
  const rows=analysis.questionRows.filter(r=>(subject==='All subjects'||r.question.subject===subject)&&(status==='all'||r.status===status||(status==='painful'&&r.timeSeconds>r.idealSeconds&&r.status==='incorrect'))&&`${r.question.prompt} ${r.question.chapter} ${r.question.topic}`.toLowerCase().includes(search.toLowerCase()));
  const wrong=analysis.questionRows.filter(r=>r.status==='incorrect');
  const scenarioScore=analysis.score+wrong.slice(0,scenario).reduce((sum,r)=>sum+r.question.marks+r.negativeScore,0);
@@ -68,16 +81,67 @@ export function TestAnalysis({attempt,cohort,onCohortChange,onBack,onRetake}:Pro
  const peerSets=[{name:'Yours',records:[] as Peer[],self:true},{name:'Top scorer',records:sorted.slice(0,1),self:false},{name:'Top 10% of imported cohort',records:sorted.slice(0,Math.max(1,Math.ceil(sorted.length*.1))),self:false},{name:'Top 25% of imported cohort',records:sorted.slice(0,Math.max(1,Math.ceil(sorted.length*.25))),self:false}];
  const avg=(peers:Peer[],get:(p:Peer)=>number)=>peers.length?peers.reduce((sum,p)=>sum+get(p),0)/peers.length:0;
  const completePeers=cohortPeers.filter(p=>p.questionResults?.length===attempt.paper.questions.length&&p.questionResults.every(r=>attempt.paper.questions.some(q=>q.id===r.questionId)));
+ const submitted = new Date(attempt.submittedAt || attempt.deadlineAt);
+ const answerSummary = analysis.attempted
+   ? `${analysis.correct} of ${analysis.attempted} ${analysis.attempted === 1 ? 'answer was' : 'answers were'} correct.`
+   : 'No answers were recorded.';
+ const reviewSummary = wrong.length
+   ? `${wrong.length} ${wrong.length === 1 ? 'question was' : 'questions were'} answered incorrectly.${analysis.negativeScore ? ` Negative marking deducted ${decimal(analysis.negativeScore)} ${analysis.negativeScore === 1 ? 'mark' : 'marks'}.` : ''} Open the question review to see the answer key and your response.`
+   : analysis.unattempted
+     ? `${analysis.unattempted} ${analysis.unattempted === 1 ? 'question was' : 'questions were'} left unanswered. Open the question review to revisit the paper.`
+     : 'Open the time analysis to see how you paced yourself across the paper.';
+
+ function reviewAttempt() {
+   if (!wrong.length && !analysis.unattempted) { jump('time'); return; }
+   setSubject('All subjects');
+   setSearch('');
+   setStatus(wrong.length ? 'incorrect' : 'all');
+   jump('questions');
+ }
 
  return <div className="test-analysis" ref={root}>
-   <div className="analysis-topline"><button className="text-link" onClick={onBack}><ArrowLeft size={15}/>All tests</button><span className="analysis-muted">Submitted {new Date(attempt.submittedAt||attempt.deadlineAt).toLocaleString('en-IN')}</span></div>
-   <div className="analysis-report-header"><div><span className="eyebrow">YOUR TEST, IN PERSPECTIVE</span><h2>{attempt.paper.title}</h2><p>Every number below comes from this attempt and its answer key.</p></div><div className="analysis-head-score"><b>{decimal(analysis.score)}<small>/{decimal(analysis.maxScore)}</small></b><span>marks scored</span></div></div>
-   <div className="analysis-actions"><button className="button secondary" onClick={exportReport}><Download size={15}/>Download analysis</button><button className="button secondary" onClick={()=>window.print()}><Printer size={15}/>Print / save PDF</button><button className="button secondary" onClick={()=>setLeaderboard(true)}><Trophy size={15}/>Leaderboard</button><button className="button secondary" onClick={()=>setSelected(wrong[0]||analysis.questionRows[0])}><BookOpen size={15}/>View solutions</button><button className="button tonal" onClick={onRetake}><RotateCcw size={15}/>Retake</button></div>
-   <div className="analysis-tabs" role="tablist" aria-label="Analysis type" onKeyDown={analysisTabKey}><button role="tab" id="analysis-personal-tab" aria-controls="analysis-personal-panel" tabIndex={tab==='personal'?0:-1} aria-selected={tab==='personal'} className={tab==='personal'?'active':''} onClick={()=>setTab('personal')}>Result analysis</button><button role="tab" id="analysis-comparative-tab" aria-controls="analysis-comparative-panel" tabIndex={tab==='comparative'?0:-1} aria-selected={tab==='comparative'} className={tab==='comparative'?'active':''} onClick={()=>setTab('comparative')}>Comparative analysis</button></div>
+   <div className="analysis-topline"><button className="text-link" onClick={onBack}><ArrowLeft size={15}/>All tests</button></div>
+   <header className="analysis-report-lead">
+     <div>
+       <p className="analysis-report-meta"><strong>{attempt.paper.title}</strong><span>Submitted {submitted.toLocaleString('en-IN')}</span></p>
+       <h1>You scored {decimal(analysis.score)} out of {decimal(analysis.maxScore)}.</h1>
+     </div>
+     <div className="analysis-actions analysis-lead-actions">
+       <button className="button secondary" onClick={onRetake}><RotateCcw size={15}/>Retake test</button>
+       <button className="button secondary" onClick={() => setShareOpen(true)}><Share2 size={15}/>Share result</button>
+       <button className="button analysis-solutions-action" onClick={() => setSelected(wrong[0] || analysis.questionRows[0])}><BookOpen size={15}/>View solutions</button>
+     </div>
+   </header>
+   <div className="analysis-view-controls">
+     <div className="analysis-tabs" role="tablist" aria-label="Analysis type" onKeyDown={analysisTabKey}><button role="tab" id="analysis-personal-tab" aria-controls="analysis-personal-panel" tabIndex={tab==='personal'?0:-1} aria-selected={tab==='personal'} className={tab==='personal'?'active':''} onClick={()=>setTab('personal')}>Result analysis</button><button role="tab" id="analysis-comparative-tab" aria-controls="analysis-comparative-panel" tabIndex={tab==='comparative'?0:-1} aria-selected={tab==='comparative'} className={tab==='comparative'?'active':''} onClick={()=>setTab('comparative')}>Comparative analysis</button></div>
+     <div className="analysis-actions analysis-report-tools">
+       <button className="button secondary" onClick={exportReport}><Download size={15}/>Download analysis</button>
+       <button className="button secondary" onClick={() => window.print()}><Printer size={15}/>Print / save PDF</button>
+       <button className="button secondary" onClick={() => setLeaderboard(true)}><Trophy size={15}/>Leaderboard</button>
+     </div>
+   </div>
    <div role="tabpanel" id={`analysis-${tab}-panel`} aria-labelledby={`analysis-${tab}-tab`}>
-   {tab==='personal'?<>
-     <nav className="analysis-section-nav" aria-label="Analysis sections">{sections.map(([id,label])=><button className={section===id?'active':''} key={id} onClick={()=>jump(id)}>{label}</button>)}</nav>
-     <section id="analysis-overview" className="analysis-kpis">{[{label:'Score',value:analysis.score,suffix:` / ${analysis.maxScore}`},{label:'Questions attempted',value:analysis.attempted,suffix:` / ${attempt.paper.questions.length}`},{label:'Accuracy',value:analysis.accuracy,suffix:'%'},{label:'Time taken',value:analysis.timeSeconds<60?Math.round(analysis.timeSeconds):Number((analysis.timeSeconds/60).toFixed(1)),suffix:analysis.timeSeconds<60?' sec':' min'},{label:'Positive score',value:analysis.positiveScore,suffix:' marks'},{label:'Negative marks',value:analysis.negativeScore,suffix:' marks'}].map(kpi=><div className="analysis-kpi" key={kpi.label}><span>{kpi.label}</span><b><CountUp value={kpi.value}/><small>{kpi.suffix}</small></b></div>)}</section>
+   {tab==='personal'?<div className="analysis-reading-layout">
+     <nav className="analysis-section-nav" aria-label="Analysis sections">
+       {sections.map(([id, label]) => <button key={id} className={section === id ? 'active' : ''} aria-current={section === id ? 'location' : undefined} onClick={() => jump(id)}>
+         {label}{id === 'errors' && wrong.length > 0 && <span>{wrong.length}</span>}{id === 'questions' && <span>{attempt.paper.questions.length}</span>}
+       </button>)}
+     </nav>
+     <div className="analysis-reading-content">
+     <section id="analysis-overview" aria-labelledby="analysis-overview-title">
+       <div className="analysis-overview-banner">
+         <div><span className="analysis-banner-label">Attempt overview</span><h2 id="analysis-overview-title">Your test is complete.</h2><p>See how you scored, where you spent your time, and which questions to revisit.</p></div>
+         <StudyNotebook />
+       </div>
+       <div className="analysis-insight">
+         <span className="analysis-insight-label"><span><Leaf size={17}/></span>From your attempt</span>
+         <h3>{answerSummary}</h3>
+         <p>{reviewSummary}</p>
+         <button className="analysis-insight-action" onClick={reviewAttempt}>{wrong.length ? 'Review incorrect answers' : analysis.unattempted ? 'Open question review' : 'See time analysis'}<ArrowRight size={16}/></button>
+       </div>
+       <div className="analysis-kpis">{[{label:'Score',value:analysis.score,suffix:` / ${analysis.maxScore}`},{label:'Questions attempted',value:analysis.attempted,suffix:` / ${attempt.paper.questions.length}`},{label:'Accuracy',value:analysis.accuracy,suffix:'%'},{label:'Time taken',value:analysis.timeSeconds<60?Math.round(analysis.timeSeconds):Number((analysis.timeSeconds/60).toFixed(1)),suffix:analysis.timeSeconds<60?' sec':' min'},{label:'Positive score',value:analysis.positiveScore,suffix:' marks'},{label:'Negative marks',value:analysis.negativeScore,suffix:' marks'}].map(kpi=><div className="analysis-kpi" key={kpi.label}><span>{kpi.label}</span><b><CountUp value={kpi.value}/><small>{kpi.suffix}</small></b></div>)}</div>
+       {integritySummary}
+     </section>
      <Panel id="performance" title="Test breakdown" description="Subject-wise breakdown of your correct, incorrect, unattempted and not visited questions."><TestBreakdown analysis={analysis}/></Panel>
      <Panel id="time" title="Time analysis" description="Your recorded time, attempted questions, and accuracy by subject."><TimeAnalysis attempt={attempt} analysis={analysis} cohort={cohort} onImport={()=>setTab('comparative')}/><SubjectTimeCharts analysis={analysis}/><TimeQualityChart analysis={analysis}/><details className="rc-outcome-journey"><summary>Compare correct and incorrect answer trends together</summary><TimeJourneyCharts attempt={attempt} analysis={analysis}/></details></Panel>
      <Panel id="attempts" title="Attempt analysis" description="Perfect: correct within the target time. Wasted: incorrect within half the target. Overtime: answered after the target. Confused: unanswered beyond the target. Other attempts are listed separately."><Table caption="Attempt efficiency" headers={['Evaluation','Questions','Time spent']} rows={['Perfect','Wasted','Overtime','Confused','Other','Unattempted'].map(label=>{const matching=analysis.questionRows.filter(r=>r.timeCategory===label);return [label,matching.length,fmt(matching.reduce((sum,r)=>sum+r.timeSeconds,0))];})}/><AttemptEfficiencyCharts analysis={analysis}/></Panel>
@@ -86,7 +150,8 @@ export function TestAnalysis({attempt,cohort,onCohortChange,onBack,onRetake}:Pro
      <Panel id="errors" title="Error analysis" description="Review wrong and unanswered questions by chapter. Add your own error labels after checking the solution."><Table caption="Chapter errors" headers={['Chapter','Incorrect','Unanswered','Marks missed']} rows={analysis.chapters.filter(g=>g.incorrect||g.unattempted).map(g=>[g.name,g.incorrect,g.unattempted,decimal(g.maxScore-g.score)])}/><div className="analysis-error-tags">{Object.entries(tags).filter(([,label])=>label).map(([id,label])=><button key={id} onClick={()=>setSelected(analysis.questionRows.find(r=>r.question.id===id)||null)}>Q{attempt.paper.questions.findIndex(q=>q.id===id)+1} · {label}</button>)}</div><ErrorOptimizationChart analysis={analysis}/><details className="analysis-correction-details"><summary>Explore correcting individual answers</summary><div className="analysis-scenario"><div><h3>Score improvement scenario</h3><p>A calculation from the answer key, not a prediction of your next score. Correcting the first {scenario} incorrect questions would change your score to:</p></div><b>{decimal(scenarioScore)}<small> / {analysis.maxScore}</small></b><label>Incorrect answers corrected<input type="range" min={0} max={wrong.length} value={scenario} disabled={!wrong.length} onChange={e=>setScenario(Number(e.target.value))}/></label><div className="analysis-scenario-values"><span>Actual: {decimal(analysis.score)}</span><span>Without negative marks: {decimal(analysis.improvement.scoreWithoutNegative)}</span><span>All incorrect answers corrected: {decimal(analysis.improvement.scoreIfIncorrectCorrect)}</span></div></div></details></Panel>
      <Panel id="journey" title="Question journey" description="Each visit, answer change, clear, and review flag is recorded chronologically."><div className="analysis-event-list">{analysis.journey.map((event,i)=><button key={i} onClick={()=>setSelected(analysis.questionRows.find(r=>r.question.id===event.questionId)||null)}><time>{fmt((event.at-attempt.startedAt)/1000)}</time><span className="analysis-event-question">{event.questionId?'Q'+(attempt.paper.questions.findIndex(q=>q.id===event.questionId)+1):'—'}</span><span>{eventLabel(event,i)}</span><ChevronRight size={13}/></button>)}</div></Panel>
      <Panel id="questions" title="Question by question" description="Select a question for your response, the answer key, explanation, and a shortcut into the Mistake Book."><div className="analysis-question-filters"><label className="analysis-search"><Search size={15}/><input aria-label="Search test questions" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search question, chapter, topic…"/></label><SmoothSelect aria-label="Analysis subject" value={subject} onChange={e=>setSubject(e.target.value)}><option>All subjects</option>{analysis.subjects.map(g=><option key={g.name}>{g.name}</option>)}</SmoothSelect><SmoothSelect aria-label="Question outcome" value={status} onChange={e=>setStatus(e.target.value)}><option value="all">All outcomes</option><option value="correct">Correct</option><option value="incorrect">Incorrect</option><option value="unattempted">Visited, unanswered</option><option value="unvisited">Not visited</option><option value="painful">Painful questions</option></SmoothSelect></div><div className="analysis-question-map">{rows.map(row=><button key={row.question.id} className={`outcome-${row.status}`} onClick={()=>setSelected(row)} title={`${row.question.subject}: ${row.status}, ${fmt(row.timeSeconds)}`} aria-label={`Review question ${attempt.paper.questions.findIndex(q=>q.id===row.question.id)+1}, ${row.status}`}>{attempt.paper.questions.findIndex(q=>q.id===row.question.id)+1}{row.response.markedReview&&<Flag size={9}/>}</button>)}</div>{analysis.painfulQuestions.length>0&&<div className="analysis-painful"><b>{analysis.painfulQuestions.length} painful questions</b><span>Incorrect answers that took longer than their target time.</span><button className="text-link" onClick={()=>setStatus('painful')}>Review these<ArrowRight size={13}/></button></div>}<Table caption="Complete question overview" headers={['Question','Chapter / topic','Difficulty','Target / spent','Outcome','Evaluation','Marks']} rows={rows.map(row=>[<button className="analysis-row-open" onClick={()=>setSelected(row)}>Q{attempt.paper.questions.findIndex(q=>q.id===row.question.id)+1}<ChevronRight size={13}/></button>,<span>{row.question.chapter||'Uncategorized'}<small>{row.question.topic}</small></span>,row.question.difficulty,`${fmt(row.idealSeconds)} / ${fmt(row.timeSeconds)}`,<span className={`analysis-status ${row.status}`}>{row.status}</span>,row.timeCategory,decimal(row.score)])}/></Panel>
-   </>:<>
+    </div></div>:<>
+      {integritySummary}
      <Panel title="Compare with real results" description="Import peer results for this exact paper. The app has no access to Quizrr accounts, ranks, or its private question bank."><div className="analysis-cohort-actions"><button className="button primary" onClick={()=>fileInput.current?.click()}><Upload size={15}/>Import cohort JSON / CSV</button><input className="sr-only" type="file" ref={fileInput} accept=".json,.csv,application/json,text/csv" aria-label="Import real cohort results" onChange={e=>{const file=e.target.files?.[0];if(file)void importCohort(file);e.target.value='';}}/><button className="button secondary" onClick={()=>{setImportError('');setPasteOpen(true);}}>Paste results JSON</button><button className="button secondary" onClick={()=>setShareOpen(true)}>Share my comparison result</button><button className="button secondary" onClick={()=>saveFile('cohort-template.csv','name,score,timeSeconds,attempted,correct\n','text/csv')}><FileText size={14}/>Empty CSV template</button>{cohort.length>0&&<button className="button secondary" onClick={()=>{onCohortChange([]);notify('Imported comparison cleared');}}>Clear comparison</button>}</div><p className="analysis-muted mt-3">JSON accepts an array of result records or exported Verdant analysis files’ cohortRecord objects. Include detailed questionResults to unlock difficulty and hourly comparisons.</p>{cohortName&&<p className="analysis-muted mt-2">Source: {cohortName}</p>}{importError&&<p className="form-error" role="alert">{importError}</p>}</Panel>
      {!cohort.length?<Empty title="Your result needs a real comparison group" description="Import actual results from people who took this paper. Rank and percentile will appear only when peer records are available."/>:<>
      <div className="analysis-kpis comparison-kpis">{[{label:'Rank in imported cohort + you',value:comparison.rank,suffix:` / ${cohort.length+1}`},{label:'Empirical percentile',value:comparison.percentile,suffix:'%'},{label:'Cohort average',value:comparison.averageScore,suffix:' marks'},{label:'Top cohort score',value:comparison.topScore,suffix:' marks'}].map(k=><div className="analysis-kpi" key={k.label}><span>{k.label}</span><b>{decimal(k.value)}<small>{k.suffix}</small></b></div>)}</div><p className="analysis-method"><Info size={15}/>{comparison.method} This is not an official or predicted exam percentile.</p>

@@ -10,9 +10,9 @@ function savedTheme(): ThemeMode | null {
   } catch { return null; }
 }
 
-/** Starts in Verdant's dark theme and respects saved choices across tabs. */
+/** Starts in the light workspace and respects saved choices across tabs. */
 export function useThemeMode(): { theme: ThemeMode; toggleTheme: () => void } {
-  const [theme, setTheme] = useState<ThemeMode>(() => savedTheme() || 'dark');
+  const [theme, setTheme] = useState<ThemeMode>(() => savedTheme() || 'light');
   const currentTheme = useRef(theme);
   currentTheme.current = theme;
 
@@ -32,7 +32,7 @@ export function useThemeMode(): { theme: ThemeMode; toggleTheme: () => void } {
     const storageChanged = (event: StorageEvent) => {
       if (event.key !== THEME_KEY && event.key !== null) return;
       const saved = event.newValue === 'light' || event.newValue === 'dark' ? event.newValue : null;
-      setTheme(saved || 'dark');
+      setTheme(saved || 'light');
     };
     window.addEventListener('storage', storageChanged);
     return () => window.removeEventListener('storage', storageChanged);
