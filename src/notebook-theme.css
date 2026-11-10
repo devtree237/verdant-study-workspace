@@ -1,43 +1,29 @@
-/* The notebook references set the canvas, text, and action roles. Keep Verdant's
-   existing card content, status colors, charts, and dark surface palette. */
+/* A blue-to-lilac sky behind the workspace, with a darker counterpart. */
 :root {
   --notebook-radius: 20px;
   --notebook-gutter: clamp(18px, 3.3vw, 58px);
+  --notebook-shadow: 0 10px 32px -22px #182f5238;
+  --workspace-sky: radial-gradient(ellipse at 82% 14%, #d9d4fc 0%, #d9d4fc88 25%, transparent 59%),
+    linear-gradient(148deg, #85c3fa 0%, var(--sky-blue) 32%, #e0f2ff 70%, var(--sky-paper) 100%);
 }
 
-:root[data-theme='light'] {
-  --canvas: #f4f3f9;
-  --surface: #fff;
-  --surface-raised: #fff;
-  --surface-faint: #f8f7fb;
-  --surface-soft: #ede8fb;
-  --surface-hover: #f8f6fe;
-  --control-bg: #fff;
-  --control-border: #dad8e5;
-  --heading: #101f36;
-  --ink: #17263a;
-  --muted: #546274;
-  --border: #e3e0ed;
-  --mint: #edf7f2;
-  --accent: #5740cf;
-  --accent-rgb: 87, 64, 207;
-  --accent-button: #5740cf;
-  --accent-button-hover: #4933ba;
-  --accent-hover: #4933ba;
-  --accent-strong: #4530a9;
-  --accent-soft: #eee9fc;
-  --accent-soft-hover: #e3dbfc;
-  --notebook-shadow: 0 10px 32px -22px #18214238;
-  --chat-user-surface: #ede8fb;
-  --chat-assistant-surface: #f8f7fb;
-  color: var(--ink);
-  background: var(--canvas);
+:root[data-theme='dark'] {
+  --workspace-sky: radial-gradient(ellipse at 84% 10%, #293d7188 0%, transparent 61%),
+    linear-gradient(148deg, #193962 0%, #152b4a 36%, #102039 68%, var(--canvas) 100%);
 }
 
-:root[data-theme='light'] :is(body,.app-shell,.main-shell) {
+:root[data-theme] body {
+  min-width: min(360px, 100%);
   color: var(--ink);
   background-color: var(--canvas);
+  background-image: var(--workspace-sky);
+  background-position: center;
+  background-size: cover;
+  background-attachment: fixed;
 }
+:root[data-theme] :is(.app-shell,.main-shell) { color: var(--ink); background: transparent; }
+.app-shell.is-calendar-workspace .calendar-full-shell { background: transparent; }
+.app-shell .chat-page :is(.full-page-chat,.chat-stage,.chat-main,.chat-composer-area) { background: transparent; }
 
 .app-shell:not(.is-calendar-workspace) > .main-shell > main:not(.chat-page,.focus-route-page,.calendar-page) {
   padding-inline: var(--notebook-gutter);
@@ -61,7 +47,7 @@
 .app-shell :is(.daily-progress,.analytics-hero,.learning-banner) { border-radius: var(--notebook-radius); }
 :root[data-theme='light'] .app-shell :is(.daily-progress,.analytics-hero,.learning-banner) {
   background: var(--surface-soft);
-  border-color: #dfd5f8;
+  border-color: var(--border);
   box-shadow: none;
   animation: none;
 }
@@ -69,7 +55,6 @@
 .app-shell .daily-progress { min-height: 105px; padding: clamp(16px, 2.2vw, 26px); gap: 15px; }
 .app-shell .daily-progress-copy h2 { font-size: clamp(14px, 1.5vw, 19px); font-weight: 600; letter-spacing: -.025em; }
 .app-shell .daily-progress-copy p { line-height: 1.5; }
-:root[data-theme='light'] .app-shell .daily-icon { background: #ffffffbc; border-color: #e1d9f5; }
 
 .app-shell :is(.folder-card,.label-card,.resource-table,.analytics-panel,.test-card,.test-empty-wrap,.test-history,.modal-panel,.focus-page .focus-card) {
   border-radius: var(--notebook-radius);
@@ -80,7 +65,7 @@
   border-color: var(--border);
   box-shadow: var(--notebook-shadow);
 }
-:root[data-theme='light'] .app-shell :is(.folder-card,.label-card):hover { border-color: #c9b9f0; background-color: var(--surface-hover); }
+:root[data-theme='light'] .app-shell :is(.folder-card,.label-card):hover { border-color: var(--control-border); background-color: var(--surface-hover); }
 :root[data-theme='light'] .app-shell :is(.task-title,.folder-title,.resource-name b,.history-row>span b,.test-card h3,.test-history-row>span:first-child b) { color: var(--ink); }
 :root[data-theme='light'] .app-shell .task-done .task-title { color: var(--muted); }
 
@@ -91,13 +76,13 @@
   border-radius: 13px;
   background-color: var(--surface);
 }
-:root[data-theme='light'] .app-shell .task-groups .task-card:hover { background-color: var(--surface-hover); border-color: #d8cbee; }
+:root[data-theme='light'] .app-shell .task-groups .task-card:hover { background-color: var(--surface-hover); border-color: var(--control-border); }
 :root[data-theme='light'] .app-shell .task-groups .task-card:hover .task-actions,
 :root[data-theme='light'] .app-shell .task-groups .task-card:focus-within .task-actions {
   background-color: inherit;
   box-shadow: none;
 }
-:root[data-theme='light'] .app-shell .page-body .empty-state {
+:root[data-theme] .app-shell .page-body .empty-state {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--notebook-radius);

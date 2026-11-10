@@ -19,6 +19,7 @@ export function useThemeMode(): { theme: ThemeMode; toggleTheme: () => void } {
   useLayoutEffect(() => {
     document.documentElement.dataset.theme = theme;
     document.documentElement.style.colorScheme = theme;
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#152b4a' : '#a5d8ff');
   }, [theme]);
 
   const toggleTheme = useCallback(() => {

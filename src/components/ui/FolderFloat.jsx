@@ -6,8 +6,8 @@ import './FolderFloat.css';
 export default function FolderFloat({
   items = [], label = 'Study materials', sublabel = '', trigger = 'hover',
   defaultOpen = false, closeOnSelect = true, onSelect, onActivate, onOpenChange,
-  folderColor = '#7855ed', frontColor = '#8b68fa', paperColor = '#f6f1ff',
-  itemTextColor = '#38284e', labelColor = '#fff', width = 200, height = 148,
+  folderColor = 'var(--sky-cobalt, #1e3fd8)', frontColor = 'var(--sky-cobalt, #1e3fd8)', paperColor = 'var(--sky-paper, #f6f8ff)',
+  itemTextColor = '#19314e', labelColor = '#fff', width = 200, height = 148,
   openDuration = 560, stagger = 45, className = ''
 }) {
   const list = items.map(item => typeof item === 'string' ? { label: item, value: item } : item);

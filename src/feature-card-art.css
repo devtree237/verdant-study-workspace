@@ -1,0 +1,68 @@
+.test-card-top > .test-paper-art {
+  width: clamp(72px, 9vw, 112px);
+  flex-shrink: 0;
+}
+
+.test-resume-banner > .test-resume-art,
+.mistake-due-banner > .mistake-banner-art,
+.task-history-intro > .history-intro-art {
+  width: clamp(74px, 11vw, 132px);
+  flex-shrink: 0;
+}
+
+:root[data-theme] .app-shell .test-centre .test-empty-wrap > .empty-state {
+  background: transparent;
+  border: 0;
+}
+
+.mistake-recall .mistake-recall-art {
+  width: clamp(44px, 5vw, 66px);
+  flex-shrink: 0;
+}
+
+.vault-folder-heading:has(.vault-heading-art) {
+  padding: 12px clamp(14px, 2.3vw, 26px);
+  border: 1px solid var(--border);
+  border-radius: var(--notebook-radius, 20px);
+  background: var(--surface-soft);
+}
+
+.vault-heading-copy {
+  display: flex;
+  align-items: center;
+  gap: clamp(8px, 1.6vw, 18px);
+  min-width: 0;
+  flex: 1;
+}
+
+.vault-heading-copy > .vault-heading-art,
+.material-upload > .material-upload-art {
+  width: clamp(66px, 9vw, 114px);
+  flex-shrink: 0;
+}
+
+.vault-heading-copy h2 { overflow-wrap: anywhere; }
+.quiz-results > .quiz-result-art { width: min(152px, 65%); margin-bottom: 6px; }
+.focus-page-heading > .focus-page-art { width: clamp(96px, 15vw, 155px); margin: 0 auto 10px; }
+.analytics-hero > .feature-banner-art { width: clamp(105px, 15vw, 182px); margin-left: auto; }
+.label-card > .label-card-art { width: clamp(46px, 6vw, 64px); margin: 0; color: var(--art-ink); }
+
+@media (max-width: 650px) {
+  .vault-folder-heading:has(.vault-heading-art) {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  :root .app-shell .mistake-book .mistake-due-banner:has(> .mistake-banner-art) {
+    grid-template-columns: clamp(63px, 20vw, 88px) minmax(0, 1fr);
+  }
+
+  .analytics-hero:has(> .feature-banner-art) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 12px;
+  }
+
+  .analytics-hero:has(> .feature-banner-art) > div:first-child { grid-column: 1 / -1; }
+  .analytics-hero > .feature-banner-art { width: clamp(100px, 32vw, 160px); margin: 0; }
+}

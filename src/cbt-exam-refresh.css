@@ -1,8 +1,8 @@
 /* Use a distinct frame for the timed test and its preparation screen. */
 .cbt-shell,
 .cbt-preflight-stage {
-  --cbt-stage: #f8f7f3;
-  --cbt-frame: linear-gradient(145deg, #78baf2 0%, #b0bdf4 46%, #bde8eb 76%, #7fb7df 100%);
+  --cbt-stage: var(--sky-paper, #f6f8ff);
+  --cbt-frame: linear-gradient(145deg, #85c3fa 0%, #becdf8 46%, #c4eaff 76%, #8cccf2 100%);
   --cbt-frame-edge: #ffffff83;
   --cbt-action: #132944;
   --cbt-action-hover: #234363;
@@ -14,9 +14,9 @@
   --cbt-bg: var(--cbt-stage);
   --cbt-surface: #fff;
   --cbt-raised: #fff;
-  --cbt-soft: #f2f0eb;
+  --cbt-soft: #edf3fb;
   --cbt-hover: #f4f7fc;
-  --cbt-border: #deddd5;
+  --cbt-border: #d5e1f2;
   --cbt-text: #142741;
   --cbt-muted: #52617a;
   --cbt-accent: #254f84;
@@ -30,17 +30,25 @@
 
 .cbt-shell[data-cbt-theme=dark],
 :root[data-theme=dark] .cbt-preflight-stage {
-  --cbt-stage: #15101f;
-  --cbt-frame: linear-gradient(140deg, #34345b, #3d315e 45%, #304c62);
-  --cbt-frame-edge: #d9c6ff35;
-  --cbt-action: #bba9fc;
-  --cbt-action-hover: #d3c5ff;
-  --cbt-on-action: #241637;
-  --cbt-focus: #cab5ff;
+  --cbt-stage: #0e1b2f;
+  --cbt-frame: linear-gradient(140deg, #294d7c, #263f69 45%, #225a72);
+  --cbt-frame-edge: #a5d8ff35;
+  --cbt-action: #a5d8ff;
+  --cbt-action-hover: #c6e7ff;
+  --cbt-on-action: #142845;
+  --cbt-focus: #badaff;
 }
 
 .cbt-shell[data-cbt-theme=dark] {
-  --cbt-accent: #bba9fc;
+  --cbt-bg: var(--cbt-stage);
+  --cbt-surface: #111f34;
+  --cbt-raised: #1a2d48;
+  --cbt-soft: #182c47;
+  --cbt-hover: #203857;
+  --cbt-border: #385478;
+  --cbt-text: #e0edff;
+  --cbt-muted: #a9c1df;
+  --cbt-accent: #a5d8ff;
   --cbt-positive: #8bd2a2;
   --cbt-negative: #ffaaa0;
   --cbt-urgent: #ffc39a;

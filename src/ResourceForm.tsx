@@ -1,12 +1,13 @@
 import { SmoothSelect } from './components/ui/SmoothSelect';
 import { useEffect, useRef, useState } from 'react';
-import { ArrowRight, Brain, Check, FileText, Plus, Upload, X } from 'lucide-react';
+import { ArrowRight, Brain, Check, FileText, Plus, X } from 'lucide-react';
 import type { Resource, Question } from './model';
 import { day, uid } from './model';
 import { extractMaterial, MATERIAL_ACCEPT } from './materials';
 import type { ReadableMaterial } from './materials';
 import { fileStore, useStore } from './store';
 import { Modal } from './ui';
+import { StudyIllustration } from './StudyIllustration';
 
 export function ResourceForm({resource,folder,initialUpload=false,onClose}:{resource?:Resource;folder:string|null;initialUpload?:boolean;onClose:()=>void}) {
   const {data,update,notify}=useStore();
@@ -68,7 +69,7 @@ export function ResourceForm({resource,folder,initialUpload=false,onClose}:{reso
   return <Modal title={resource?'Edit study material':initialUpload?'Upload your study material':'Add to your resource vault'} onClose={onClose} wide>
     <form onSubmit={save}><div className="modal-body space-y-4">
       <div className={`material-upload ${dragging?'dragging':''} ${file?'has-file':''}`} onDragOver={e=>{e.preventDefault();setDragging(true);}} onDragLeave={e=>{if(!e.currentTarget.contains(e.relatedTarget as Node))setDragging(false);}} onDrop={e=>{e.preventDefault();setDragging(false);if(saving)return;const selected=e.dataTransfer.files[0];if(selected)void chooseFile(selected);}}>
-        <span className="material-upload-icon">{file?<Check size={23}/>:<Upload size={23}/>}</span>
+        {file ? <span className="material-upload-icon"><Check size={23} /></span> : <StudyIllustration variant="materials" className="material-upload-art" size={105} />}
         <div><b>{file?.name||resource?.fileName||'Bring your own study material'}</b><p>{progress|| (parsed?`${parsed.wordCount.toLocaleString()} words ready · ${parsed.pages.length} ${parsed.kind==='pdf'?'pages':'sections'}`:'PDF, LaTeX (.tex), Word (.docx), TXT, or Markdown · up to 25 MB')}</p></div>
         <button type="button" className="button secondary small" disabled={saving||!!progress} onClick={()=>input.current?.click()}>{file||resource?.fileKey?'Replace file':'Choose file'}</button>
         <input ref={input} className="sr-only" type="file" accept={MATERIAL_ACCEPT} aria-label="Upload study material" disabled={saving||!!progress} onChange={e=>{const selected=e.target.files?.[0];if(selected)void chooseFile(selected);e.target.value='';}}/>

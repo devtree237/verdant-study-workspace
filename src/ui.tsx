@@ -15,6 +15,7 @@ import './scientific-notation.css';
 import './modal-layout.css';
 import { prepareScientificMarkdown } from './scientific-notation';
 import { ScientificMath } from './ScientificMath';
+import { StudyIllustration, type StudyIllustrationVariant } from './StudyIllustration';
 import { useStore } from './store';
 gsap.registerPlugin(useGSAP,Flip,Draggable,CustomEase);
 CustomEase.create('botanical.out', '0.16,1,0.3,1');
@@ -60,6 +61,20 @@ export function Modal({title,children,onClose,wide=false}:{title:string;children
  return <div className="modal-backdrop" ref={ref} onMouseDown={e=>{if(e.target===e.currentTarget)close();}}><section role="dialog" aria-modal="true" aria-labelledby={id} className={`modal-panel ${wide?'modal-wide':''}`}><header className="modal-header"><h2 id={id}>{title}</h2><button className="icon-btn" aria-label="Close dialog" onClick={close}><X size={19}/></button></header><div className="modal-content">{children}</div></section></div>;
 }
 export function Toast(){const{notice,dismiss}=useStore();const ref=useRef<HTMLDivElement>(null);useGSAP(()=>{if(notice)gsap.fromTo(ref.current,{y:30,opacity:0},{y:0,opacity:1,duration:duration(.35),ease:'power3.out'});},{scope:ref,dependencies:[notice?.id],revertOnUpdate:true});if(!notice)return null;return <div className="toast" ref={ref} role="status"><span className="toast-check"><Check size={15}/></span><span>{notice.message}</span>{notice.undo&&<button className="font-semibold text-emerald-300" onClick={()=>{notice.undo?.();dismiss();}}>Undo</button>}<button aria-label="Dismiss notification" onClick={dismiss}><X size={15}/></button></div>;}
-export function Empty({title,description,action}:{title:string;description:string;action?:ReactNode}){return <div className="empty-state"><span className="empty-leaf" aria-hidden="true"><Leaf size={30}/></span><h3>{title}</h3><p>{description}</p>{action}</div>;}
+type EmptyProps = {
+  title: string;
+  description: string;
+  action?: ReactNode;
+  illustration?: StudyIllustrationVariant;
+};
+
+export function Empty({ title, description, action, illustration = 'tasks' }: EmptyProps) {
+  return <div className="empty-state">
+    <StudyIllustration variant={illustration} className="empty-illustration" />
+    <h3>{title}</h3>
+    <p>{description}</p>
+    {action}
+  </div>;
+}
 export function SectionHeading({title,count,children}:{title:string;count?:number;children?:ReactNode}){return <div className="section-heading"><h2>{title}{count!==undefined&&<span>{count}</span>}</h2>{children}</div>;}
 export function TextLink({children,onClick}:{children:ReactNode;onClick:()=>void}){return <button className="text-link" onClick={onClick}>{children}<ArrowUpRight size={14}/></button>;}

@@ -1,0 +1,73 @@
+.study-illustration {
+  --art-ink: #162b4d;
+  --art-paper: #f6f8ff;
+  --art-sky: #a5d8ff;
+  --art-cyan: #38bdf8;
+  --art-cobalt: #1e3fd8;
+  --art-shadow: #638de443;
+  display: block;
+  max-width: 100%;
+  height: auto;
+  color: var(--art-ink);
+  pointer-events: none;
+}
+
+:root[data-theme='dark'] .study-illustration {
+  --art-ink: #c5e3ff;
+  --art-paper: #1e3756;
+  --art-sky: #315c8e;
+  --art-cyan: #3b82b6;
+  --art-cobalt: #374eab;
+  --art-shadow: #050f2370;
+}
+
+.study-illustration .art-paper { fill: var(--art-paper); }
+.study-illustration .art-sky { fill: var(--art-sky); }
+.study-illustration .art-cyan { fill: var(--art-cyan); }
+.study-illustration .art-cobalt { fill: var(--art-cobalt); }
+.study-illustration .art-shadow { fill: var(--art-shadow); }
+
+.empty-state > .empty-illustration {
+  width: clamp(118px, 16vw, 154px);
+  margin: 0 auto 13px;
+}
+
+.daily-progress > .daily-illustration {
+  width: clamp(100px, 11vw, 160px);
+  flex: 0 0 auto;
+}
+
+@media (max-width: 550px) {
+  .daily-progress:has(> .daily-illustration) {
+    display: grid;
+    grid-template-columns: clamp(66px, 20vw, 88px) minmax(0, 1fr);
+    column-gap: 8px;
+    row-gap: 4px;
+  }
+
+  .daily-progress > .daily-illustration {
+    grid-row: 1 / span 2;
+    width: 100%;
+  }
+
+  .daily-progress:has(> .daily-illustration) .daily-progress-meter {
+    width: min(100%, 116px);
+  }
+
+  .daily-progress:has(> .daily-illustration) .daily-progress-meter > span {
+    margin-bottom: 5px;
+    text-align: left;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .daily-illustration .art-object,
+  .empty-illustration .art-object {
+    animation: study-art-settle 460ms cubic-bezier(.2,.8,.3,1) both;
+  }
+
+  @keyframes study-art-settle {
+    from { opacity: .58; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+}
