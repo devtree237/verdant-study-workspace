@@ -3,7 +3,8 @@
   --dock-button-size: 38px;
   --dock-gap: 3px;
   --dock-bottom: max(12px, env(safe-area-inset-bottom, 0px));
-  --workspace-dock-clearance: calc(var(--dock-bottom) + var(--dock-button-size) + 28px);
+  --dock-handle-height: 32px;
+  --workspace-dock-clearance: calc(var(--dock-bottom) + var(--dock-handle-height) + var(--dock-button-size) + 24px);
   --dock-surface: #f6f8ffed;
   --dock-edge: #ffffffda;
   --dock-icon: #294475;
@@ -60,19 +61,91 @@
   position: fixed;
   z-index: 40;
   inset: auto auto var(--dock-bottom) 50%;
-  display: flex;
+  display: grid;
   width: max-content;
   max-width: calc(100% - 24px);
+  justify-items: center;
+  pointer-events: none;
+  translate: -50% 0;
+}
+
+.app-shell.has-workspace-dock > .workspace-dock[data-expanded=true] { pointer-events: auto; }
+
+.workspace-dock-controls {
+  position: relative;
+  isolation: isolate;
+  grid-row: 1;
+  display: flex;
   align-items: center;
   gap: var(--dock-gap);
-  padding: 7px;
+  padding: 8px;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(34px) scale(.96);
+  transform-origin: center bottom;
+  transition: opacity 170ms ease, transform 260ms var(--ease-out-expo, ease-out), visibility 0s 260ms;
+}
+
+.workspace-dock-controls::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: 0 auto 0 50%;
+  width: 96px;
   border: 1px solid var(--dock-edge);
-  border-radius: 19px;
+  border-radius: 24px;
   background: var(--dock-surface);
   box-shadow: var(--dock-shadow);
   backdrop-filter: blur(16px);
   translate: -50% 0;
+  transition: width 280ms var(--ease-out-expo, ease-out), border-radius 220ms ease;
 }
+
+.workspace-dock[data-expanded=true] .workspace-dock-controls {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+  transition-delay: 0s;
+}
+
+.workspace-dock[data-expanded=true] .workspace-dock-controls::before {
+  width: 100%;
+  border-radius: 19px;
+}
+
+.workspace-dock-handle {
+  position: relative;
+  isolation: isolate;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-width: 98px;
+  height: var(--dock-handle-height);
+  color: var(--dock-ink);
+  border-radius: 100px;
+  font-size: 12px;
+  font-weight: 650;
+  pointer-events: auto;
+}
+
+.workspace-dock-handle::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  border: 1px solid var(--dock-edge);
+  border-radius: inherit;
+  background: var(--dock-surface);
+  box-shadow: var(--dock-shadow);
+  backdrop-filter: blur(16px);
+  transition: inset 230ms var(--ease-out-expo, ease-out), background-color 160ms ease;
+}
+
+.workspace-dock-handle > svg { transition: transform 230ms var(--ease-out-expo, ease-out); }
+.workspace-dock-handle:focus-visible { outline: 2px solid var(--dock-focus); outline-offset: 2px; }
+.workspace-dock[data-expanded=true] .workspace-dock-handle::before { inset: 4px 9px 0; }
+.workspace-dock[data-expanded=true] .workspace-dock-handle > svg { transform: rotate(180deg); }
 
 .workspace-dock :is(.workspace-dock-links, .workspace-dock-actions) {
   display: flex;
@@ -332,7 +405,7 @@
 @media (max-width: 650px) {
   .app-shell.has-workspace-dock { --dock-button-size: 42px; }
   .app-shell.has-workspace-dock .workspace-dock :is([data-dock-tier=standard], .dock-utility),
-  .workspace-dock > .dock-divider { display: none; }
+  .workspace-dock-controls > .dock-divider { display: none; }
 }
 
 @media (max-width: 359px) {
@@ -346,7 +419,9 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .app-shell.has-workspace-dock .workspace-dock :is(.dock-button, .dock-label) { transition: none; }
+  .app-shell.has-workspace-dock .workspace-dock :is(.dock-button, .dock-label, .workspace-dock-controls, .workspace-dock-handle > svg),
+  .workspace-dock-controls::before,
+  .workspace-dock-handle::before { transition: none; }
 }
 
 @media print {

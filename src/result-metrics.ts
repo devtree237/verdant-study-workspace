@@ -15,6 +15,11 @@ export type ErrorOptimization = {
 
 const rounded = (value: number) => Math.round((value + Number.EPSILON) * 1_000_000) / 1_000_000;
 
+export function formatResultTime(seconds: number) {
+  const wholeSeconds = Math.max(0, Math.round(seconds));
+  return wholeSeconds < 60 ? `${wholeSeconds}s` : `${Math.floor(wholeSeconds / 60)}m ${wholeSeconds % 60}s`;
+}
+
 /** Counts final answers at their recorded save time, rather than inferring time from time spent. */
 export function getTimeJourney(attempt: TestAttempt, questionRows: QuestionAnalysis[], intervalMinutes = 30): TimeJourneyBin[] {
   if (!Number.isFinite(intervalMinutes) || intervalMinutes <= 0) throw new Error('The journey interval must be a positive number of minutes.');
