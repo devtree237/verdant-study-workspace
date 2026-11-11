@@ -1,0 +1,155 @@
+.pomodoro-page {
+  min-height: max(0px, calc(100dvh - var(--workspace-dock-clearance, 80px) - 56px));
+  display: grid;
+  place-items: center;
+}
+
+.pomodoro-view {
+  display: flex;
+  flex-direction: column;
+  width: min(100%, 550px);
+  padding: clamp(18px, 3.5vw, 34px);
+  border: 1px solid var(--border);
+  border-radius: var(--notebook-radius, 20px);
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--notebook-shadow);
+}
+
+.pomodoro-header,
+.pomodoro-heading,
+.pomodoro-actions {
+  display: flex;
+  align-items: center;
+}
+
+.pomodoro-header { justify-content: space-between; gap: 10px; }
+.pomodoro-heading { gap: 9px; }
+.pomodoro-heading svg { color: var(--accent); flex-shrink: 0; }
+.pomodoro-heading h1 { font-size: 21px; font-weight: 600; letter-spacing: -.03em; }
+
+.pomodoro-icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 42px;
+  width: 42px;
+  height: 42px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  color: var(--muted);
+  transition: color 160ms ease, background 160ms ease;
+}
+
+.pomodoro-icon:hover { color: var(--accent); background: var(--surface-hover); }
+.pomodoro-reset svg { transition: transform 220ms var(--ease-out-expo, ease-out); }
+.pomodoro-reset:hover svg { transform: rotate(-35deg); }
+
+.pomodoro-content {
+  display: grid;
+  justify-items: center;
+  margin: auto 0;
+  padding: 26px 0 12px;
+}
+
+.pomodoro-status { font-size: 13px; color: var(--muted); font-weight: 550; }
+
+.pomodoro-view .focus-clock {
+  display: grid;
+  justify-items: center;
+  padding: 0;
+  margin: 6px 0 14px;
+  color: var(--heading, var(--ink));
+  background: none;
+  font: 600 clamp(52px, 13vw, 90px)/1 'Inter', sans-serif;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.065em;
+}
+
+.pomodoro-view .timer-digits { letter-spacing: inherit; }
+.pomodoro-view .timer-digit { width: .61em; text-align: center; }
+.pomodoro-view .timer-separator { color: var(--muted); margin-inline: .015em; }
+
+.pomodoro-progress {
+  appearance: none;
+  display: block;
+  width: min(100%, 255px);
+  height: 3px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 4px;
+  background: var(--border);
+  color: var(--accent);
+}
+
+.pomodoro-progress::-webkit-progress-bar { background: var(--border); }
+.pomodoro-progress::-webkit-progress-value { background: var(--accent); }
+.pomodoro-progress::-moz-progress-bar { background: var(--accent); }
+
+.pomodoro-lengths {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 22px;
+  padding: 3px;
+  border-radius: 10px;
+  background: var(--surface-soft);
+}
+
+.pomodoro-lengths button {
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: 7px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.pomodoro-lengths button[aria-pressed=true] { background: var(--accent-soft); color: var(--accent-strong); font-weight: 600; }
+.pomodoro-lengths button:hover:not(:disabled) { color: var(--accent-strong); }
+.pomodoro-lengths button:disabled { cursor: default; }
+.pomodoro-actions { gap: 9px; margin-top: 24px; }
+.pomodoro-view .pomodoro-start { min-height: 44px; min-width: 135px; border-radius: 999px; }
+
+.pomodoro-dialog {
+  inset: 0;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  background: var(--canvas);
+}
+
+body:has(.pomodoro-dialog[open]) { overflow: hidden; }
+
+:is(.pomodoro-view:fullscreen, .pomodoro-dialog .pomodoro-view) {
+  width: 100%;
+  min-height: 100dvh;
+  padding: max(18px, env(safe-area-inset-top)) clamp(18px, 4vw, 56px) max(18px, env(safe-area-inset-bottom));
+  border: 0;
+  border-radius: 0;
+  background: var(--canvas);
+  box-shadow: none;
+  overflow: auto;
+}
+
+.pomodoro-view:fullscreen::backdrop { background: var(--canvas); }
+.pomodoro-dialog::backdrop { background: var(--canvas); }
+
+:is(.pomodoro-view:fullscreen, .pomodoro-dialog) .focus-clock {
+  font-size: clamp(58px, min(19vw, 27vh), 190px);
+  margin-bottom: 18px;
+}
+
+:is(.pomodoro-view:fullscreen, .pomodoro-dialog) .pomodoro-content { padding: 18px 0 42px; }
+:is(.pomodoro-view:fullscreen, .pomodoro-dialog) .pomodoro-progress { width: min(64vw, 400px); }
+
+@media (max-height: 430px) {
+  :is(.pomodoro-view:fullscreen, .pomodoro-dialog) .pomodoro-content { padding-block: 6px 12px; }
+  :is(.pomodoro-view:fullscreen, .pomodoro-dialog) .pomodoro-actions { margin-top: 14px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pomodoro-icon, .pomodoro-reset svg { transition: none; }
+}

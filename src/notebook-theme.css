@@ -56,11 +56,11 @@
 .app-shell .daily-progress-copy h2 { font-size: clamp(14px, 1.5vw, 19px); font-weight: 600; letter-spacing: -.025em; }
 .app-shell .daily-progress-copy p { line-height: 1.5; }
 
-.app-shell :is(.folder-card,.label-card,.resource-table,.analytics-panel,.test-card,.test-empty-wrap,.test-history,.modal-panel,.focus-page .focus-card) {
+.app-shell :is(.folder-card,.label-card,.resource-table,.analytics-panel,.test-card,.test-empty-wrap,.test-history,.modal-panel) {
   border-radius: var(--notebook-radius);
 }
 .app-shell :is(.analytics-stats>div,.test-summary>div,.module-summary>div) { border-radius: 15px; }
-:root[data-theme='light'] .app-shell :is(.folder-card,.label-card,.resource-table,.analytics-panel,.test-card,.test-empty-wrap,.test-history,.focus-page .focus-card) {
+:root[data-theme='light'] .app-shell :is(.folder-card,.label-card,.resource-table,.analytics-panel,.test-card,.test-empty-wrap,.test-history) {
   background-color: var(--surface);
   border-color: var(--border);
   box-shadow: var(--notebook-shadow);

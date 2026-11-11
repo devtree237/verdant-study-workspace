@@ -66,12 +66,10 @@
 .calendar-list-group label>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .calendar-list-group p{font-size:11px;line-height:1.8;color:var(--text-secondary);margin:0}
 .calendar-connect{display:flex;align-items:center;gap:8px;text-align:left;font-size:11px;color:var(--accent)}
-.calendar-workspace-link{margin-top:auto;display:flex;align-items:center;gap:8px;color:var(--text-secondary);font-size:11px;min-height:32px;padding-top:10px;text-align:left}
-.calendar-workspace-link>svg:last-child{margin-left:auto}
-.calendar-workspace-link:hover{color:var(--text-primary)}
-.calendar-shell-canvas{display:flex;flex:1;min-width:0;min-height:0;overflow:hidden;border-radius:25px 25px 0 0;margin:10px 20px 0 0;background:var(--surface);border:1px solid color-mix(in srgb,var(--control-border) 50%,transparent);border-bottom:0}
+.calendar-shell-canvas{display:flex;flex:1;min-width:0;min-height:0;overflow:hidden;border-radius:25px 25px 0 0;margin:10px 20px 0 0;background:var(--surface)}
 .calendar-shell-body:not(.is-sidebar-open) .calendar-shell-canvas{margin-left:20px}
 .calendar-fullpage .verdant-calendar-content{font-size:12px;background:transparent}
+.calendar-fullpage .verdant-calendar-content > .border-t{border-top:0}
 .calendar-fullpage .verdant-calendar-content [data-slot=event-calendar-day-header]{background:transparent;min-height:94px;border-color:transparent}
 .calendar-day-heading{display:flex;flex-direction:column;align-items:center;gap:7px;padding:12px 0 10px;line-height:1;color:var(--text-secondary)}
 .calendar-day-heading>span{font-size:10px;text-transform:uppercase;font-weight:500;letter-spacing:.07em}

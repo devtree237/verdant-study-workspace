@@ -39,6 +39,7 @@ import {
   EVENT_TRACK_WIDTH,
   EventCalendarNowIndicator,
   EventCalendarTimeGutter,
+  getCalendarScrollbarWidth,
   minuteBlockStyle,
 } from "./event-calendar-time-grid"
 import type {
@@ -137,7 +138,7 @@ function EventCalendarResourceView({
     const syncScrollbarGutter = () => {
       root?.style.setProperty(
         "--ec-scrollbar-w",
-        `${viewport ? viewport.offsetWidth - viewport.clientWidth : 0}px`
+        `${getCalendarScrollbarWidth(viewport)}px`
       )
     }
     syncScrollbarGutter()
@@ -202,7 +203,7 @@ function EventCalendarResourceView({
         startHour={startHour}
         interval={interval}
       />
-      <div className="grid min-w-0 flex-1" style={{ gridTemplateColumns }}>
+      <div className="grid min-w-0 flex-1" data-slot="event-calendar-time-columns" style={{ gridTemplateColumns, ...EVENT_CALENDAR_TIME_GRID_BACKGROUND }}>
         {resources.map((resource) => (
           <EventCalendarResourceColumn
             key={resource.id}
@@ -645,7 +646,6 @@ function EventCalendarResourceColumn({
       )}
       style={{
         height: `calc(var(--ec-hour-height) * ${boundsMinutes / 60})`,
-        ...EVENT_CALENDAR_TIME_GRID_BACKGROUND,
       }}
       onPointerDown={(e) => {
         if (e.target === e.currentTarget) gestures.beginCreate(e, day, false)

@@ -1,5 +1,5 @@
 import type { RefObject } from 'react';
-import { gsap, useGSAP, duration, motion } from './ui';
+import { Flip, gsap, useGSAP, duration, motion } from './ui';
 
 /** Shared disclosure motion also covers menus rendered through portals. */
 export function useDropdownMotion() {
@@ -57,8 +57,9 @@ export function useWorkspaceMotion(scope: RefObject<HTMLDivElement | null>) {
     const reveal = contextSafe!((nodes: Element[]) => {
       const fresh = nodes.filter(node => !seen.has(node) && node.getClientRects().length);
       fresh.forEach(node => seen.add(node));
-      if (!fresh.length || media.matches) return;
-      gsap.fromTo(fresh, { opacity: 0, y: 4 }, {
+      const entering = fresh.filter(node => !node.matches('.task-card') || !Flip.getByTarget(node));
+      if (!entering.length || media.matches) return;
+      gsap.fromTo(entering, { opacity: 0, y: 4 }, {
         opacity: 1, y: 0, duration: motion.state, stagger: .025,
         ease: motion.easeOut, clearProps: 'opacity,transform', overwrite: 'auto',
       });

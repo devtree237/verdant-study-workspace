@@ -1,3 +1,7 @@
+body:has(.modal-backdrop) {
+  overflow: hidden;
+}
+
 .modal-backdrop .modal-panel {
   display: flex;
   flex-direction: column;

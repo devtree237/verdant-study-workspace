@@ -24,7 +24,7 @@ function markedText(text:string, ranges:{start:number;end:number;active?:boolean
   });
 }
 
-export function MaterialReader({resource,onCapture}:{resource:Resource;onCapture:(text:string)=>void}) {
+export function MaterialReader({resource,inlineLatex,onCapture}:{resource:Resource;inlineLatex?:string;onCapture:(text:string)=>void}) {
   const [material,setMaterial]=useState<ReadableMaterial|null>(null);
   const [progress,setProgress]=useState('Opening your material…');
   const [error,setError]=useState('');
@@ -48,6 +48,7 @@ export function MaterialReader({resource,onCapture}:{resource:Resource;onCapture
   const matches=useMemo(()=>searchMaterial(material?.pages||[],query),[material,query]);
   const page=material?.pages[pageIndex];
   const isPDF=resource.type==='PDF';
+  const fileName=resource.fileName||resource.title+(isPDF?'.pdf':resource.fileKind==='latex'?'.tex':'.txt');
   const pageLabel=isPDF?'Page':'Section';
 
   useEffect(()=>{
@@ -55,25 +56,26 @@ export function MaterialReader({resource,onCapture}:{resource:Resource;onCapture
     async function load(){
       setError('');
       try{
-        if(!resource.fileKey)throw new Error('No file is attached. Choose Edit resource to upload your material.');
-        const blob=await fileStore('get',resource.fileKey);
+        const fileKey=resource.fileKey;
+        if(!fileKey&&!inlineLatex)throw new Error('No file is attached. Choose Edit resource to upload your material.');
+        const blob=fileKey?await fileStore('get',fileKey):new Blob([inlineLatex||''],{type:'application/x-tex'});
         if(!blob)throw new Error('This file is not stored in this browser. Upload it again from Edit resource.');
         if(!active)return;
         objectURL=URL.createObjectURL(blob);setUrl(objectURL);setBlob(blob);
         if(isPDF&&view==='original'){setProgress('');return;}
-        const cached=await fileStore('get',resource.fileKey+':reader');
+        const cached=fileKey?await fileStore('get',fileKey+':reader'):undefined;
         let parsed:ReadableMaterial|null=null;
-        if(cached){try{const value=JSON.parse(await cached.text());if(value.version===1&&Array.isArray(value.pages))parsed=value;}catch{/* Rebuild the cache from the original. */}}
+        if(cached){try{const value=JSON.parse(await cached.text());if(value.version===1&&Array.isArray(value.pages)&&(value.kind!=='latex'||value.latexPresentation===1))parsed=value;}catch{/* Rebuild the cache from the original. */}}
         if(!parsed){
-          parsed=await extractMaterial(new File([blob],resource.fileName||resource.title+(isPDF?'.pdf':'.txt'),{type:blob.type}),message=>{if(active)setProgress(message);});
-          await fileStore('put',resource.fileKey+':reader',new Blob([JSON.stringify(parsed)],{type:'application/json'})).catch(()=>{});
+          parsed=await extractMaterial(new File([blob],fileName,{type:blob.type}),message=>{if(active)setProgress(message);});
+          if(fileKey)await fileStore('put',fileKey+':reader',new Blob([JSON.stringify(parsed)],{type:'application/json'})).catch(()=>{});
         }
         if(active){setMaterial(parsed);setProgress('');}
       }catch(e){if(active){setError(e instanceof Error?e.message:'Unable to read this file. Try uploading it again.');setProgress('');}}
     }
     void load();
     return()=>{active=false;if(objectURL)URL.revokeObjectURL(objectURL);};
-  },[resource.fileKey,resource.fileName,resource.title,isPDF,view]);
+  },[resource.fileKey,fileName,inlineLatex,isPDF,view]);
 
   useEffect(()=>{
     if(!speechAvailable)return;
@@ -134,7 +136,7 @@ export function MaterialReader({resource,onCapture}:{resource:Resource;onCapture
   if(isPDF&&view==='original'&&blob)return <section className="material-reader material-reader-pdf"><div className="reader-mode-actions"><span>PDF workspace</span><button className="button secondary small" onClick={()=>setView('text')}><Volume2 size={14}/>Text & read aloud</button></div><Suspense fallback={<p role="status" className="reader-hint">Opening your PDF workspace…</p>}><PdfReader resource={resource} blob={blob} onCapture={onCapture}/></Suspense></section>;
   return <section className="material-reader" ref={ref} aria-label="Material reader">
     {isPDF&&blob&&<div className="reader-mode-actions"><span>Text & read aloud</span><button className="button secondary small" onClick={()=>{stop();setView('original');}}><ChevronLeft size={14}/>PDF workspace</button></div>}
-    <div className="reader-file-heading"><div><b>{resource.fileName||resource.title}</b><span>{material?`${material.wordCount.toLocaleString()} words · ${material.pages.length} ${isPDF?'pages':'sections'}`:progress}</span></div>{url&&<a className="icon-btn" href={url} download={resource.fileName||resource.title} aria-label="Download original material" title="Download original"><Download size={17}/></a>}</div>
+    <div className="reader-file-heading"><div><b>{resource.fileName||resource.title}</b><span>{material?`${material.wordCount.toLocaleString()} words · ${material.pages.length} ${isPDF?'pages':'sections'}`:progress}</span></div>{url&&<a className="icon-btn" href={url} download={fileName} aria-label="Download original material" title="Download original"><Download size={17}/></a>}</div>
     {error&&<p className="form-error" role="alert">{error}</p>}
     {material&&<>
       <div className="reader-search"><Search size={16}/><input type="search" value={query} onChange={e=>find(e.target.value)} placeholder="Find in this material…" aria-label="Search material text" onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();moveMatch(e.shiftKey?-1:1);}}}/><span aria-live="polite">{query.trim()?matches.length?`${matchIndex+1} / ${matches.length}${matches.length===5000?'+':''}`:'No matches':''}</span><button className="icon-btn" aria-label="Previous search result" disabled={!matches.length} onClick={()=>moveMatch(-1)}><ArrowUp size={15}/></button><button className="icon-btn" aria-label="Next search result" disabled={!matches.length} onClick={()=>moveMatch(1)}><ArrowDown size={15}/></button></div>
@@ -143,7 +145,7 @@ export function MaterialReader({resource,onCapture}:{resource:Resource;onCapture
       {speechError&&<p className="form-error" role="alert">{speechError}</p>}
       {material.warning&&<p className="reader-hint">{material.warning}</p>}
       <div className="reader-navigation"><div className="reader-view-switch" role="group" aria-label="Document view"><button className={view==='text'?'active':''} onClick={()=>setView('text')}>Text reader</button>{isPDF&&<button className={view==='original'?'active':''} onClick={()=>{stop();setView('original');}}>Original PDF</button>}</div><div className="reader-pages"><button className="icon-btn" aria-label="Previous page" disabled={pageIndex===0} onClick={()=>navigate(pageIndex-1)}><ChevronLeft size={16}/></button><label>{pageLabel}<SmoothSelect aria-label={`Go to ${pageLabel.toLowerCase()}`} value={pageIndex} onChange={e=>navigate(Number(e.target.value))}>{material.pages.map((p,i)=><option key={p.number} value={i}>{p.number}</option>)}</SmoothSelect><span>of {material.pages.length}</span></label><button className="icon-btn" aria-label="Next page" disabled={pageIndex===material.pages.length-1} onClick={()=>navigate(pageIndex+1)}><ChevronRight size={16}/></button></div></div>
-      {view==='text'?<div className="reader-page" ref={textRef} tabIndex={0} aria-label={`${pageLabel} ${pageIndex+1} text`} onMouseUp={capture} onKeyUp={e=>{if(e.key==='Shift')capture();}}><span className="reader-page-label">{pageLabel.toUpperCase()} {pageIndex+1}</span>{page?.text?<div className="reader-text">{material?.kind==='latex'&&!query&&!spoken?<Markdown>{page.text}</Markdown>:markedText(page.text,matches.map((m,i)=>({...m,active:i===matchIndex})).filter(m=>m.pageIndex===pageIndex),spoken?.pageIndex===pageIndex?spoken:null)}</div>:<p className="reader-hint">No readable text on this {pageLabel.toLowerCase()}. {isPDF?'Open the original PDF to view this page.':''}</p>}</div>:<p className="reader-hint" role="status">Opening the PDF workspace…</p>}
+      {view==='text'?<div className="reader-page" ref={textRef} tabIndex={0} aria-label={`${pageLabel} ${pageIndex+1} text`} onMouseUp={capture} onKeyUp={e=>{if(e.key==='Shift')capture();}}><span className="reader-page-label">{pageLabel.toUpperCase()} {pageIndex+1}</span>{page?.text?<div className="reader-text">{(material.kind==='latex'||material.kind==='markdown')&&!query&&!spoken?<Markdown>{page.text}</Markdown>:markedText(page.text,matches.map((m,i)=>({...m,active:i===matchIndex})).filter(m=>m.pageIndex===pageIndex),spoken?.pageIndex===pageIndex?spoken:null)}</div>:<p className="reader-hint">No readable text on this {pageLabel.toLowerCase()}. {isPDF?'Open the original PDF to view this page.':''}</p>}</div>:<p className="reader-hint" role="status">Opening the PDF workspace…</p>}
       <p className="reader-hint reader-bottom-hint">Select text to copy it into Quick capture. Read-aloud starts on the current {pageLabel.toLowerCase()} and continues through the document.</p>
     </>}
     {url&&isPDF&&<a className="reader-original-link" href={`${url}#page=${pageIndex+1}`} target="_blank" rel="noreferrer">Open original PDF in a new tab<ExternalLink size={13}/></a>}

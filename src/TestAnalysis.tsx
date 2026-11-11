@@ -1,6 +1,6 @@
 import { SmoothSelect } from './components/ui/SmoothSelect';
-import { useMemo, useRef, useState } from 'react';
-import { ArrowLeft, ArrowRight, BookOpen, ChevronRight, Download, FileText, Info, Leaf, Printer, RotateCcw, Share2, Trophy, Upload } from 'lucide-react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { ArrowLeft, ArrowRight, BookOpen, ChevronLeft, ChevronRight, Download, FileText, Info, Leaf, Printer, RotateCcw, Share2, Trophy, Upload } from 'lucide-react';
 import type { CohortRecord, QuestionAnalysis, TestAttempt } from './testing-model';
 import { analyseAttempt, compareCohort, getAttemptQuestions, parseCohortJSON, scoreQuestion, paperFingerprint } from './testing-model';
 import { categories, day, uid } from './model';
@@ -23,7 +23,7 @@ const comparativeSections = [['cohort', 'Import results'], ['comparison', 'Perfo
 type ResultSection = typeof sections[number][0];
 type ComparativeSection = typeof comparativeSections[number][0];
 const decimal=(value:number|null)=>value===null?'—':Number(value.toFixed(2)).toLocaleString();
-function saveFile(name:string,data:string,type='application/json'){const url=URL.createObjectURL(new Blob([data],{type}));const link=document.createElement('a');link.href=url;link.download=name;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+function saveFile(name:string,data:BlobPart,type='application/json'){const url=URL.createObjectURL(new Blob([data],{type}));const link=document.createElement('a');link.href=url;link.download=name;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
 function csvRows(source:string){const rows:string[][]=[];let row:string[]=[],field='',quoted=false;for(let i=0;i<source.length;i++){const c=source[i];if(c==='"'){if(quoted&&source[i+1]==='"'){field+='"';i++;}else quoted=!quoted;}else if(c===','&&!quoted){row.push(field);field='';}else if((c==='\n'||c==='\r')&&!quoted){if(c==='\r'&&source[i+1]==='\n')i++;row.push(field);if(row.some(x=>x.trim()))rows.push(row);row=[];field='';}else field+=c;}if(quoted)throw new Error('A CSV value has an unclosed quote.');row.push(field);if(row.some(x=>x.trim()))rows.push(row);return rows;}
 function parsePeers(source:string,name:string):CohortRecord[]{if(name.toLowerCase().endsWith('.csv')){const rows=csvRows(source);const header=rows.shift()?.map(x=>x.trim())||[];const required=['name','score','timeSeconds','attempted','correct'];if(new Set(header).size!==header.length)throw new Error('CSV column names must be unique.');for(const field of required)if(!header.includes(field))throw new Error('CSV needs a '+field+' column.');return parseCohortJSON(JSON.stringify(rows.map((row,index)=>{if(row.length!==header.length)throw new Error('CSV row '+(index+2)+' has a different number of values than its header.');const record:Record<string,unknown>={};for(const key of required){const cell=row[header.indexOf(key)]?.trim();if(!cell)throw new Error('CSV row '+(index+2)+' is missing '+key+'.');record[key]=key==='name'?cell:Number(cell);}for(const key of ['paperId','paperFingerprint'])if(header.includes(key)&&row[header.indexOf(key)].trim())record[key]=row[header.indexOf(key)].trim();return record;})));}const value=JSON.parse(source);const records=Array.isArray(value)?value.map(row=>row.cohortRecord||row):value.cohortRecord?[value.cohortRecord]:value;return parseCohortJSON(JSON.stringify(records));}
 
@@ -32,6 +32,107 @@ function Panel({title,description,children}:{title:string;description?:string;ch
 function ReportPane({id, active, children}: {id: ResultSection | ComparativeSection; active: boolean; children: React.ReactNode}) {
   return <div id={`analysis-${id}`} className={`analysis-report-pane${id === 'share' ? ' analysis-share-pane' : ''}`} hidden={!active}>{children}</div>;
 }
+
+function AnalysisSectionNav<T extends string>({options, current, onSelect, label, counts}: {
+  options: readonly (readonly [T, string])[];
+  current: T;
+  onSelect: (id: T) => void;
+  label: string;
+  counts?: Partial<Record<T, number>>;
+}) {
+  const wrapper = useRef<HTMLDivElement>(null);
+  const rail = useRef<HTMLElement>(null);
+  const [scroll, setScroll] = useState({overflow: false, back: false, forward: false});
+
+  useEffect(() => {
+    const container = wrapper.current;
+    const nav = rail.current;
+    if (!container || !nav) return;
+
+    const measure = () => {
+      const overflow = getComputedStyle(nav).flexDirection === 'row' && nav.scrollWidth > container.clientWidth + 1;
+      const back = overflow && nav.scrollLeft > 1;
+      const forward = overflow && nav.scrollLeft + nav.clientWidth < nav.scrollWidth - 1;
+      setScroll(previous => previous.overflow === overflow && previous.back === back && previous.forward === forward
+        ? previous
+        : {overflow, back, forward});
+    };
+
+    const scrollWithWheel = (event: WheelEvent) => {
+      if (getComputedStyle(nav).flexDirection !== 'row' || event.ctrlKey || event.shiftKey ||
+          Math.abs(event.deltaX) >= Math.abs(event.deltaY)) return;
+      const scale = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? nav.clientWidth : 1;
+      const next = Math.max(0, Math.min(nav.scrollWidth - nav.clientWidth, nav.scrollLeft + event.deltaY * scale));
+      if (Math.abs(nav.scrollLeft - next) < 1) return;
+      event.preventDefault();
+      nav.scrollLeft = next;
+    };
+
+    const observer = new ResizeObserver(measure);
+    observer.observe(container);
+    observer.observe(nav);
+    nav.addEventListener('scroll', measure);
+    nav.addEventListener('wheel', scrollWithWheel, {passive: false});
+    measure();
+    return () => {
+      observer.disconnect();
+      nav.removeEventListener('scroll', measure);
+      nav.removeEventListener('wheel', scrollWithWheel);
+    };
+  }, [options.length]);
+
+  useLayoutEffect(() => {
+    const nav = rail.current;
+    const active = nav?.querySelector<HTMLButtonElement>('[aria-current]');
+    if (!nav || !active) return;
+    const bounds = nav.getBoundingClientRect();
+    const button = active.getBoundingClientRect();
+    const inset = 4;
+    const left = bounds.left + inset;
+    const right = bounds.left + nav.clientWidth - inset;
+    const top = bounds.top + inset;
+    const bottom = bounds.top + nav.clientHeight - inset;
+    nav.scrollBy({
+      left: button.left < left ? Math.floor(button.left - left) : Math.max(0, Math.ceil(button.right - right)),
+      top: button.top < top ? Math.floor(button.top - top) : Math.max(0, Math.ceil(button.bottom - bottom)),
+      behavior: 'instant',
+    });
+  }, [current, scroll.overflow]);
+
+  function moveRail(direction: -1 | 1) {
+    const nav = rail.current;
+    if (!nav) return;
+    const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    nav.scrollBy({left: direction * nav.clientWidth * .8, behavior: reduceMotion ? 'instant' : 'smooth'});
+  }
+
+  function onKeyDown(event: React.KeyboardEvent<HTMLElement>) {
+    const horizontal = getComputedStyle(event.currentTarget).flexDirection === 'row';
+    const previous = horizontal ? 'ArrowLeft' : 'ArrowUp';
+    const next = horizontal ? 'ArrowRight' : 'ArrowDown';
+    if (![previous, next, 'Home', 'End'].includes(event.key) || event.altKey || event.ctrlKey || event.metaKey) return;
+    const buttons = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('button'));
+    const index = buttons.findIndex(button => button === event.target);
+    if (index < 0) return;
+    event.preventDefault();
+    const target = event.key === 'Home' ? buttons[0]
+      : event.key === 'End' ? buttons.at(-1)
+      : buttons[(index + (event.key === previous ? -1 : 1) + buttons.length) % buttons.length];
+    target?.focus({preventScroll: true});
+    target?.click();
+  }
+
+  return <div ref={wrapper} className="analysis-section-navigation" data-scrollable={scroll.overflow || undefined}>
+    {scroll.overflow && <button type="button" className="analysis-section-scroll" aria-label="Scroll to earlier sections" disabled={!scroll.back} onClick={() => moveRail(-1)}><ChevronLeft size={17}/></button>}
+    <nav ref={rail} className="analysis-section-nav" aria-label={label} onKeyDown={onKeyDown}>
+      {options.map(([id, name]) => <button type="button" key={id} aria-controls={`analysis-${id}`} className={current === id ? 'active' : ''} aria-current={current === id ? 'page' : undefined} onClick={() => onSelect(id)}>
+        {name}{Boolean(counts?.[id]) && <span>{counts?.[id]}</span>}
+      </button>)}
+    </nav>
+    {scroll.overflow && <button type="button" className="analysis-section-scroll" aria-label="Scroll to later sections" disabled={!scroll.forward} onClick={() => moveRail(1)}><ChevronRight size={17}/></button>}
+  </div>;
+}
+
 function MiniBars({rows,suffix='',max}:{rows:{name:string;value:number}[];suffix?:string;max?:number}){const highest=max||Math.max(1,...rows.map(r=>r.value));return <div className="analysis-mini-bars">{rows.map(row=><div key={row.name}><div><span>{row.name}</span><b>{decimal(row.value)}{suffix}</b></div><div className="analysis-bar-track"><span style={{width:`${Math.max(0,Math.min(100,row.value/highest*100))}%`}}/></div></div>)}</div>;}
 function answerText(row:QuestionAnalysis,correct=false){const q=row.question;if(q.kind==='numeric')return correct?String(q.numericAnswer??''):typeof row.response.value==='string'&&row.response.value.trim()?row.response.value:'No answer';const values=correct?q.correctAnswers:Array.isArray(row.response.value)?row.response.value:[];return values.length?values.map(i=>`${String.fromCharCode(65+i)}. ${q.options[i]}`).join('\n\n'):'No answer';}
 
@@ -43,6 +144,7 @@ export function TestAnalysis({attempt,cohort,onCohortChange,onBack,onRetake,inte
  const [questionFilter,setQuestionFilter]=useState<QuestionReviewFilter>({subject:'',outcome:'all',search:''});
  const [selected,setSelected]=useState<QuestionAnalysis|null>(null);
  const [leaderboard,setLeaderboard]=useState(false);
+ const [exporting,setExporting]=useState(false);
  const [importError,setImportError]=useState('');
  const [cohortName,setCohortName]=useState('');const [shareOpen,setShareOpen]=useState(false);const [pasteOpen,setPasteOpen]=useState(false);const [pasteText,setPasteText]=useState('');
  const [scenario,setScenario]=useState(0);
@@ -61,8 +163,8 @@ export function TestAnalysis({attempt,cohort,onCohortChange,onBack,onRetake,inte
  const comparisonPane = cohort.length ? comparativeSection : 'cohort';
  const scenarioScore=analysis.score+wrong.slice(0,scenario).reduce((sum,r)=>sum+r.question.marks+r.negativeScore,0);
  useGSAP(()=>{
-   const layout = root.current;
-   const pane = layout?.querySelector('.analysis-report-pane:not([hidden])');
+   const pane = root.current?.querySelector('.analysis-report-pane:not([hidden])');
+   const layout = pane?.closest('.analysis-reading-layout');
    if (layout && layout.getBoundingClientRect().top < 0) layout.scrollIntoView({block:'start',behavior:'instant'});
    if (pane) gsap.fromTo(pane,{opacity:0,y:8},{opacity:1,y:0,duration:duration(.24),ease:'expo.out',clearProps:'opacity,transform'});
  },{scope:root,dependencies:[tab,section,comparisonPane],revertOnUpdate:true});
@@ -79,7 +181,18 @@ export function TestAnalysis({attempt,cohort,onCohortChange,onBack,onRetake,inte
   const lastAnswer=new Map(attempt.events.filter(event=>event.type==='answer'&&event.questionId).map(event=>[event.questionId!,event.at]));
   return {name:localStorage.getItem('verdant.name')||'My result',paperId:attempt.paper.id,paperFingerprint:paperFingerprint(attempt.paper),score:analysis.score,timeSeconds:analysis.timeSeconds,attempted:analysis.attempted,correct:analysis.correct,subjectScores:Object.fromEntries(analysis.subjects.map(s=>[s.name,s.score])),questionResults:analysis.questionRows.map(row=>{const at=lastAnswer.get(row.question.id),valid=row.attempted&&at!==undefined&&Number.isFinite(at)&&at>=attempt.startedAt&&at<=attempt.deadlineAt;return {questionId:row.question.id,status:row.status,timeSeconds:row.timeSeconds,...(valid?{answeredAtSeconds:(at!-attempt.startedAt)/1000}:{})};})};
  }
- function exportReport(){const peer=resultRecord();saveFile(`${attempt.paper.title.replace(/[^a-z0-9-]/gi,'-')}-analysis.json`,JSON.stringify({version:1,paperId:attempt.paper.id,attempt,analysis,cohortRecord:peer},null,2));
+ async function exportReport(){
+   setExporting(true);
+   try {
+     const {createResultPdf} = await import('./result-pdf');
+     const report = await createResultPdf(attempt, analysis);
+     const title = attempt.paper.title.replace(/[^\p{Letter}\p{Mark}\p{Number}]+/gu, '-').slice(0, 100).replace(/^-+|-+$/g, '') || 'verdant';
+     saveFile(`${title}-analysis.pdf`, report, report.type);
+   } catch {
+     notify('This analysis could not be downloaded. Try again or use the print option.');
+   } finally {
+     setExporting(false);
+   }
  }
  async function copyResult(){try{await navigator.clipboard.writeText(JSON.stringify([resultRecord()],null,2));notify('Actual result copied as comparison JSON');}catch{notify('Select the JSON text to copy it manually, or download it.');}}
  function tagQuestion(id:string,value:string){const next={...tags,[id]:value};setTags(next);try{localStorage.setItem(`verdant.test-errors.${attempt.id}`,JSON.stringify(next));}catch{notify('This browser could not save the error label.');}}
@@ -123,18 +236,14 @@ export function TestAnalysis({attempt,cohort,onCohortChange,onBack,onRetake,inte
    <div className="analysis-view-controls">
      <div className="analysis-tabs" role="tablist" aria-label="Analysis type" onKeyDown={analysisTabKey}><button role="tab" id="analysis-personal-tab" aria-controls="analysis-personal-panel" tabIndex={tab==='personal'?0:-1} aria-selected={tab==='personal'} className={tab==='personal'?'active':''} onClick={()=>setTab('personal')}>Result analysis</button><button role="tab" id="analysis-comparative-tab" aria-controls="analysis-comparative-panel" tabIndex={tab==='comparative'?0:-1} aria-selected={tab==='comparative'} className={tab==='comparative'?'active':''} onClick={()=>setTab('comparative')}>Comparative analysis</button></div>
      <div className="analysis-actions analysis-report-tools">
-       <button className="button secondary" onClick={exportReport}><Download size={15}/>Download analysis</button>
+       <button className="button secondary" onClick={exportReport} disabled={exporting} aria-busy={exporting} title="Download result analysis as a PDF"><Download size={15}/>{exporting ? 'Preparing PDF…' : 'Download analysis'}</button>
        <button className="button secondary" onClick={() => window.print()}><Printer size={15}/>Print / save PDF</button>
        <button className="button secondary" onClick={() => setLeaderboard(true)}><Trophy size={15}/>Leaderboard</button>
      </div>
    </div>
    <div role="tabpanel" id={`analysis-${tab}-panel`} aria-labelledby={`analysis-${tab}-tab`}>
    {tab==='personal'?<div className="analysis-reading-layout">
-     <nav className="analysis-section-nav" aria-label="Analysis sections">
-       {sections.map(([id, label]) => <button type="button" key={id} aria-controls={`analysis-${id}`} className={section === id ? 'active' : ''} aria-current={section === id ? 'page' : undefined} onClick={() => showSection(id)}>
-         {label}{id === 'errors' && wrong.length > 0 && <span>{wrong.length}</span>}{id === 'questions' && <span>{attempt.paper.questions.length}</span>}
-       </button>)}
-     </nav>
+     <AnalysisSectionNav options={sections} current={section} onSelect={showSection} label="Analysis sections" counts={{errors: wrong.length, questions: attempt.paper.questions.length}}/>
      <div className="analysis-reading-content">
      <ReportPane id="overview" active={section === 'overview'}>
        <section aria-labelledby="analysis-overview-title">
@@ -187,11 +296,7 @@ export function TestAnalysis({attempt,cohort,onCohortChange,onBack,onRetake,inte
        <ResultShareCard attempt={attempt} analysis={analysis} notify={notify}/>
      </ReportPane>
      </div></div>:<div className="analysis-reading-layout">
-     <nav className="analysis-section-nav" aria-label="Comparative analysis sections">
-       {(cohort.length ? comparativeSections : comparativeSections.slice(0, 1)).map(([id, label]) =>
-         <button type="button" key={id} aria-controls={`analysis-${id}`} className={comparisonPane === id ? 'active' : ''} aria-current={comparisonPane === id ? 'page' : undefined} onClick={() => setComparativeSection(id)}>{label}</button>
-       )}
-     </nav>
+     <AnalysisSectionNav options={cohort.length ? comparativeSections : comparativeSections.slice(0, 1)} current={comparisonPane} onSelect={setComparativeSection} label="Comparative analysis sections"/>
      <div className="analysis-reading-content">
      <ReportPane id="cohort" active={comparisonPane === 'cohort'}>
       {integritySummary}

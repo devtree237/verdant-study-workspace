@@ -31,6 +31,7 @@ import { applyChatTaskToBoard, undoChatTaskBoardAction } from './chat-task-actio
 import { ClipboardList, Columns3, GripVertical } from 'lucide-react';
 import './chat-task-shelf.css';
 import './chat-composer-chips.css';
+import './chat-document-picker.css';
 
 gsap.registerPlugin(Flip);
 const COMMANDS = [
@@ -69,6 +70,10 @@ export function FullPageStudyChat({ SettingsComponent }: { SettingsComponent: Co
   const historyFlip = useRef<ReturnType<typeof Flip.getState> | null>(null), welcomeTween = useRef<gsap.core.Tween | null>(null);
   const root = useRef<HTMLDivElement>(null), textarea = useRef<HTMLTextAreaElement>(null), fileInput = useRef<HTMLInputElement>(null), menuArea = useRef<HTMLDivElement>(null), menuInput = useRef<HTMLInputElement>(null), composerArea = useRef<HTMLDivElement>(null), composerFlip = useRef<ReturnType<typeof Flip.getState> | null>(null);
   const active = chats.find(chat => chat.id === activeId), messages = active?.messages || [], ready = configured(settings), sending = !!pending, busy = sending || !!processing || !!documentBusy || voiceBusy || !loaded;
+  const documentQuery = documentSearch.trim().toLowerCase();
+  const visibleDocuments = showDocuments ? data.resources.filter(resource =>
+    resource.title.toLowerCase().includes(documentQuery) || resource.fileName?.toLowerCase().includes(documentQuery)
+  ) : [];
   const error = activeId ? feedback[activeId] : '';
   const updateChats = useCallback((fn: (current: Conversation[]) => Conversation[]) => {
     const next = fn(chatsRef.current); chatsRef.current = next; setChats(next); const revision = ++saveRevision.current;
@@ -249,6 +254,49 @@ export function FullPageStudyChat({ SettingsComponent }: { SettingsComponent: Co
     {showSettings && <Modal title="AI connection" onClose={() => setShowSettings(false)}><SettingsComponent onSaved={setSettings} onClose={() => setShowSettings(false)} /></Modal>}
     {preview && <Modal title={preview.name} onClose={() => setPreview(null)} wide><div className="modal-body chat-attachment-preview"><p>{preview.text.length.toLocaleString('en-IN')} extracted characters · {preview.pages} pages/sections · {preview.kind.toUpperCase()}</p>{preview.kind==='pasted-text'?renderMessageContent(preview.text):<pre>{preview.text.slice(0,6000)}</pre>}{preview.kind!=='pasted-text'&&preview.text.length > 6000 && <span>Preview shows the first 6,000 characters. The full extracted text is included when you send.</span>}</div></Modal>}
     {contextPreview && <Modal title="Selected workspace context" onClose={() => setContextPreview(null)} wide><div className="modal-body chat-context-preview"><p>These snapshots are included only with the message you send. Previously shared snapshots remain part of that conversation. Documents not selected here are not read.</p><ChatContextView contexts={contextPreview} onAttachTask={attachTaskCard} onAddTaskToBoard={chooseBoardCard} canUseTask={canUseTask} disabled={busy}/></div></Modal>}
-    {showDocuments && <Modal title="Choose Mistake Vault documents" onClose={() => setShowDocuments(false)} wide><div className="modal-body chat-document-picker"><p>Logged mistakes are included when Mistake Vault is selected. Add only the documents you want to share with {connectionLabel(settings)}. Files stay local until you send; external links are not fetched.</p><label className="chat-document-search"><Search size={15} /><input aria-label="Find a vault document" placeholder="Find a document…" value={documentSearch} onChange={event => setDocumentSearch(event.target.value)} /></label><div className="chat-document-list">{data.resources.filter(resource => resource.title.toLowerCase().includes(documentSearch.toLowerCase())).map(resource => { const checked = documents.some(item => item.id === resource.id); return <label key={resource.id}><input type="checkbox" checked={checked} disabled={!!documentBusy} onChange={() => void toggleDocument(resource)} /><FileText size={18} /><span><b>{resource.title}</b><small>{resource.fileName || resource.type}{checked ? ' · Selected text ready' : ''}</small></span>{documentBusy === resource.id ? <LoaderCircle size={16} className="chat-spinner" /> : checked ? <Check size={16} /> : null}</label>; })}{!data.resources.length && <p>Your Resource Vault has no materials yet. Upload a document there, or attach a file to your message.</p>}</div>{attachmentError && <p className="chat-error" role="alert">{attachmentError}</p>}</div><footer className="modal-footer"><span className="chat-document-count">{documents.length} selected document{documents.length === 1 ? '' : 's'}</span><button className="button primary" onClick={() => setShowDocuments(false)} disabled={!!documentBusy}>Done</button></footer></Modal>}
+    {showDocuments && <Modal title="Choose Mistake Vault documents" onClose={() => setShowDocuments(false)}>
+      <div className="modal-body chat-document-picker">
+        <p className="chat-document-description">Logged mistakes are included with Mistake Vault. Choose any saved documents you’d like to add.</p>
+        <div className="chat-document-search">
+          <Search size={16} aria-hidden="true" />
+          <input aria-label="Find a vault document" placeholder="Search by title or file name…" value={documentSearch} onChange={event => setDocumentSearch(event.target.value)} />
+          {documentSearch && <button type="button" aria-label="Clear document search" onClick={event => {
+            event.currentTarget.parentElement?.querySelector('input')?.focus();
+            setDocumentSearch('');
+          }}><X size={15} aria-hidden="true" /></button>}
+        </div>
+        {visibleDocuments.length > 0 ? <ul className="chat-document-list" aria-label="Resource Vault documents">
+          {visibleDocuments.map(resource => {
+            const checked = documents.some(item => item.id === resource.id);
+            const reading = documentBusy === resource.id;
+            return <li key={resource.id}>
+              <label className="chat-document-row" data-selected={checked || undefined}>
+                <span className="chat-document-icon" aria-hidden="true"><FileText size={17} /></span>
+                <span className="chat-document-name">
+                  <b>{resource.title}</b>
+                  <small>{resource.fileName || resource.type}</small>
+                </span>
+                <span className="chat-document-control">
+                  {reading && <LoaderCircle size={18} className="chat-spinner" aria-hidden="true" />}
+                  <input type="checkbox" aria-label={resource.title} checked={checked} disabled={!!documentBusy} onChange={() => void toggleDocument(resource)} />
+                </span>
+              </label>
+            </li>;
+          })}
+        </ul> : <p className="chat-document-empty" role="status">
+          {data.resources.length ? 'No matching documents. Try another title or file name.' : 'Your Resource Vault is empty. Upload a document there or attach a file to your message.'}
+        </p>}
+        <div className="chat-document-privacy">
+          <Info size={15} aria-hidden="true" />
+          <p>Selected text is shared with {connectionLabel(settings)} when you send a message. Verdant only reads saved text from this device.</p>
+        </div>
+        {documentBusy && <span className="sr-only" role="status">Reading the selected document…</span>}
+        {attachmentError && <p className="chat-error" role="alert">{attachmentError}</p>}
+      </div>
+      <footer className="modal-footer chat-document-footer">
+        <p className="chat-document-count" role="status">{documents.length} selected document{documents.length === 1 ? '' : 's'}</p>
+        <button type="button" className="button primary" onClick={() => setShowDocuments(false)} disabled={!!documentBusy}>Done</button>
+      </footer>
+    </Modal>}
   </div></AssistantRuntimeProvider>;
 }

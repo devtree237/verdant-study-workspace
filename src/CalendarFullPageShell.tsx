@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { ArrowLeft, CalendarDays, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, CircleHelp, Home, Menu, Plus, Search, Settings2, X } from 'lucide-react';
+import { ArrowLeft, CalendarDays, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, CircleHelp, Menu, Plus, Search, Settings2, X } from 'lucide-react';
 import { SmoothSelect } from './components/ui/SmoothSelect';
 import { useEventCalendarNavigation, useEventCalendarView, useEventCalendarViewSettings } from './components/ui/reui-event-calendar';
 import type { CalendarView } from './components/ui/reui-event-calendar-utils/event-calendar-types';
@@ -12,12 +12,12 @@ import { useApiConfig } from './ApiConfigContext';
 type Props = {
   children: ReactNode; subjects: Subject[]; hiddenSubjects: string[]; onToggleSubject: (id:string)=>void;
   query:string; onQuery:(value:string)=>void; showCompleted:boolean; onShowCompleted:(value:boolean)=>void;
-  onAdd:(initial?:TaskDraft)=>void; onProfile?:()=>void; onNavigate?:(page:string)=>void;
+  onAdd:(initial?:TaskDraft)=>void; onProfile?:()=>void; onBack?:()=>void;
 };
 const monthTitle=(date:Date)=>date.toLocaleDateString('en-IN',{month:'long',year:'numeric'});
 function shiftMonth(date:Date,delta:number){return new Date(date.getFullYear(),date.getMonth()+delta,1,12);}
 
-export default function CalendarFullPageShell({children,subjects,hiddenSubjects,onToggleSubject,query,onQuery,showCompleted,onShowCompleted,onAdd,onProfile,onNavigate}:Props){
+export default function CalendarFullPageShell({children,subjects,hiddenSubjects,onToggleSubject,query,onQuery,showCompleted,onShowCompleted,onAdd,onProfile,onBack}:Props){
   const navigation=useEventCalendarNavigation(),{view,setView}=useEventCalendarView(),{viewSettings,setViewSettings,effective}=useEventCalendarViewSettings();
   const {configs,statuses}=useApiConfig();
   const [gridView,setGridView]=useState<CalendarView>(view==='agenda'?'week':view);
@@ -53,8 +53,9 @@ export default function CalendarFullPageShell({children,subjects,hiddenSubjects,
     closeSidebar();
   }}>
     <header className="calendar-shell-header">
+      {onBack && <button className="calendar-header-icon calendar-back" type="button" aria-label="Back to workspace" title="Back to workspace" onClick={onBack}><ArrowLeft size={18} aria-hidden="true"/><span>Back</span></button>}
       <button ref={menuButton} className="calendar-header-icon" aria-label={sidebarOpen?'Collapse calendar sidebar':'Expand calendar sidebar'} aria-expanded={sidebarOpen} aria-controls="calendar-navigation-sidebar" onClick={()=>sidebarOpen?closeSidebar():setSidebarOpen(true)}><Menu size={22}/></button>
-      <button className="calendar-brand" aria-label="Return to workspace" onClick={()=>onNavigate?.('Today')}><span className="calendar-brand-date" aria-hidden="true">{today.getDate()}</span><span>Calendar</span></button>
+      <div className="calendar-brand"><span className="calendar-brand-date" aria-hidden="true">{today.getDate()}</span><span>Calendar</span></div>
       <button className="calendar-header-today" onClick={navigation.today}>Today</button>
       <div className="calendar-header-period"><button className="calendar-header-icon" aria-label="Previous calendar period" onClick={navigation.prev}><ChevronLeft size={20}/></button><button className="calendar-header-icon" aria-label="Next calendar period" onClick={navigation.next}><ChevronRight size={20}/></button></div>
       <h1 className="calendar-header-month" aria-live="polite">{monthTitle(navigation.date)}</h1>
@@ -77,7 +78,6 @@ export default function CalendarFullPageShell({children,subjects,hiddenSubjects,
         <label className="calendar-find-calendar"><Search size={17}/><input aria-label="Search calendars" placeholder="Search calendars" value={calendarQuery} onChange={e=>setCalendarQuery(e.target.value)}/></label>
         <details className="calendar-list-group" open><summary>My calendars<ChevronDown size={16}/></summary><div>{calendars.map(item=><label key={item.id||'personal'}><input type="checkbox" checked={!hiddenSubjects.includes(item.id)} onChange={()=>onToggleSubject(item.id)} aria-label={`Show ${item.name} calendar`} style={{accentColor:item.color==='green'?'#229767':item.color==='blue'?'#4e83df':item.color==='orange'?'#d68a3f':'#9d80f5'}}/><span>{item.name}</span></label>)}{!calendars.length&&<p>No matching calendars.</p>}</div></details>
         <details className="calendar-list-group calendar-other-group" open><summary>Other calendars<ChevronDown size={16}/></summary><div><p>{statuses.calendar.state==='connected'?'Calendar connection verified. Import events in settings to add them to your schedule.':configs.calendar.endpoint?'Calendar connection saved. Open settings to verify and import events.':'No external calendars connected.'}</p><button className="calendar-connect" onClick={onProfile}><Plus size={15}/>{configs.calendar.endpoint?'Calendar connection settings':'Connect a calendar'}</button></div></details>
-        <button className="calendar-workspace-link" onClick={()=>onNavigate?.('Today')}><Home size={16}/>Back to workspace<ArrowLeft size={14}/></button>
       </aside>
       </div>
       <div className="calendar-shell-canvas">{children}</div>

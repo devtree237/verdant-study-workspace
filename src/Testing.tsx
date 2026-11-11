@@ -200,7 +200,14 @@ export function CbtExamWorkspace({ attempt, onChange, onSubmit, onLibrary, stora
   const statuses={unvisited:'Not visited',unanswered:'Not answered',answered:'Answered',review:'Marked for review','answered-review':'Answered & marked'};
   const statusCount=(key:string)=>presented.filter(q=>questionStatus(q,attempt.responses[q.id])===key).length;
   const paletteQuestions=filtered.filter(q=>paletteFilter==='all'||questionStatus(q,attempt.responses[q.id])===paletteFilter);
-  useLayoutEffect(()=>{if(!expanded)return;const old=document.body.style.overflow,app=document.getElementById('root'),wasInert=app?.inert;document.body.style.overflow='hidden';if(app)app.inert=true;panel.current?.focus({preventScroll:true});return()=>{document.body.style.overflow=old;if(app)app.inert=wasInert||false;};},[expanded]);
+  useLayoutEffect(() => {
+    if (!expanded) return;
+    const app = document.getElementById('root');
+    const wasInert = app?.inert ?? false;
+    if (app) app.inert = true;
+    panel.current?.focus({ preventScroll: true });
+    return () => { if (app) app.inert = wasInert; };
+  }, [expanded]);
   useGSAP(()=>{gsap.fromTo('.cbt-question-content',{opacity:0,y:7},{opacity:1,y:0,duration:duration(.24),ease:'expo.out',clearProps:'opacity,transform'});},{scope:panel,dependencies:[question.id,expanded],revertOnUpdate:true});
   function navigate(id:string){if(locked)return;onChange(current=>visitQuestion(current,id,Date.now()));setPalette(false);}
   function next(){if(filteredIndex<filtered.length-1)navigate(filtered[filteredIndex+1].id);else setConfirm(true);}

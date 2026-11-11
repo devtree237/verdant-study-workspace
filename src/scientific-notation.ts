@@ -99,6 +99,18 @@ function processScientificMarkdown(source: string, shieldMathML: boolean): Scien
           index = end + 2; continue;
         }
       }
+      const environment = /^\\begin\{(equation\*?|align\*?|gather\*?)\}/.exec(source.slice(index));
+      if (environment) {
+        const close = `\\end{${environment[1]}}`;
+        const bodyStart = index + environment[0].length;
+        const end = closingDelimiter(source, close, bodyStart);
+        if (end !== -1) {
+          const body = replaceMathTextScripts(source.slice(bodyStart, end)).trim();
+          const layout = environment[1].startsWith('align') ? 'aligned' : environment[1].startsWith('gather') ? 'gathered' : '';
+          output += `\n\n$$\n${layout ? `\\begin{${layout}}\n${body}\n\\end{${layout}}` : body}\n$$\n\n`;
+          index = end + close.length; continue;
+        }
+      }
       const command = /^\\(textsubscript|textsuperscript|ce|pu)\s*/.exec(source.slice(index));
       if (command) {
         const group = groupAt(source, index + command[0].length);

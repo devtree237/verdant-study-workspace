@@ -1,6 +1,13 @@
 node_modules/
 dist/
 .local/
+public/practice-library/*
+!public/practice-library/index.json
+!public/practice-library/source/
+public/practice-library/source/*
+!public/practice-library/source/mathematics.pdf
+!public/practice-library/source/physics.pdf
+!public/practice-library/source/chemistry.pdf
 *.tsbuildinfo
 *.tar.gz
 *.log

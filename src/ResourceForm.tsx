@@ -48,7 +48,8 @@ export function ResourceForm({resource,folder,initialUpload=false,onClose}:{reso
     if(!title.trim()||(!unfiled&&!destination)){setError('Add a title and choose a folder or Unfiled.');return;}
     if(unfiled&&!data.subjects.some(item=>item.id===unfiledSubject)){setError('Choose a subject for this unfiled material.');return;}
     if(type==='Link'&&!/^https?:\/\//i.test(url)){setError('Use a complete https:// or http:// web address.');return;}
-    if(upload&&!file&&!resource?.fileKey){setError('Choose a PDF, LaTeX, Word document, text, or Markdown file to upload.');return;}
+    const inlineLatex=!file&&!resource?.fileKey&&resource?.fileKind==='latex'&&content.trim();
+    if(upload&&!file&&!resource?.fileKey&&!inlineLatex){setError('Choose a PDF, LaTeX, Word document, text, or Markdown file to upload.');return;}
     if(type==='Quiz'&&!questions.length){setError('Add at least one practice question for your quiz.');return;}
     if(questions.some(q=>!q.prompt.trim()||q.options.length<2||q.options.some(x=>!x.trim())||q.answer>=q.options.length)){setError('Each question needs a prompt, at least two answers, and a valid correct answer.');return;}
     setSaving(true);setError('');

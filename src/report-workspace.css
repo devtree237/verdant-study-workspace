@@ -110,17 +110,26 @@
   grid-template-columns: minmax(160px, 18.5%) minmax(0, 1fr);
   gap: clamp(18px, 2.1vw, 32px);
   align-items: start;
+  scroll-margin-top: var(--report-sticky-top);
 }
 .analysis-reading-content { min-width: 0; }
 .analysis-report-pane[hidden] { display: none; }
 .analysis-report-pane > :first-child { margin-top: 0; }
+.analysis-section-navigation {
+  position: sticky;
+  top: calc(var(--report-sticky-top) + 12px);
+  z-index: 8;
+  min-width: 0;
+  align-self: start;
+}
 :root .test-analysis .analysis-section-nav {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  top: calc(var(--report-sticky-top) + 12px);
-  align-self: start;
-  max-height: calc(100dvh - var(--report-sticky-top) - 28px);
+  position: static;
+  z-index: auto;
+  min-width: 0;
+  max-height: calc(100dvh - var(--report-sticky-top) - var(--workspace-dock-clearance, 0px) - 20px);
   margin: 0;
   padding: 2px;
   overflow: auto;
@@ -168,6 +177,16 @@
   outline: 2px solid var(--accent, #1e3fd8);
   outline-offset: -2px;
 }
+.analysis-section-scroll {
+  display: none;
+  place-items: center;
+  width: 32px;
+  min-height: 38px;
+  border-radius: 9px;
+  color: var(--report-accent);
+  background: var(--report-hover);
+}
+.analysis-section-scroll:disabled { opacity: .36; }
 
 .analysis-overview-banner,
 .analysis-insight {
@@ -248,13 +267,21 @@
 
 @media (max-width: 950px) {
   .analysis-reading-layout { grid-template-columns: minmax(0, 1fr); gap: 12px; }
-  :root .test-analysis .analysis-section-nav {
-    flex-direction: row;
+  .analysis-section-navigation {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: center;
     top: var(--report-sticky-top);
-    padding: 7px 2px 9px;
-    max-height: none;
     background: var(--report-nav-bg);
     border-bottom: 1px solid var(--report-outline);
+  }
+  .analysis-section-navigation[data-scrollable] { grid-template-columns: auto minmax(0, 1fr) auto; gap: 5px; }
+  .analysis-section-scroll { display: grid; }
+  :root .test-analysis .analysis-section-nav {
+    flex-direction: row;
+    padding: 7px 2px 9px;
+    max-height: none;
+    overflow: auto hidden;
   }
   :root .test-analysis .analysis-section-nav > button { min-height: 38px; white-space: nowrap; }
 }
@@ -291,6 +318,7 @@
   .analysis-report-pane[hidden]:not(.analysis-share-pane) { display: block !important; }
   .analysis-share-pane { display: none !important; }
   .analysis-view-controls,
+  .analysis-section-navigation,
   .analysis-insight-action,
   .analysis-overview-banner .analysis-notebook { display: none; }
   .test-analysis .analysis-overview-banner,

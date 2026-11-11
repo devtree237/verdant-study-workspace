@@ -1,7 +1,7 @@
 import { pdfPageText } from './pdf-text-layout';
 export type MaterialKind = 'pdf'|'docx'|'text'|'markdown'|'latex';
 export type MaterialPage = {number:number;text:string};
-export type ReadableMaterial = {version:1;name:string;kind:MaterialKind;pages:MaterialPage[];wordCount:number;warning?:string};
+export type ReadableMaterial = {version:1;name:string;kind:MaterialKind;pages:MaterialPage[];wordCount:number;warning?:string;latexPresentation?:1};
 export type SearchMatch = {pageIndex:number;start:number;end:number};
 export const MAX_FILE_SIZE=25*1024*1024;
 export const MATERIAL_ACCEPT='.pdf,.tex,.docx,.txt,.md,.markdown,application/pdf,application/x-tex,text/x-tex,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/markdown';
@@ -62,8 +62,8 @@ export async function extractMaterial(file:File,onProgress?:(message:string)=>vo
      warning='Text view preserves the words in your document. Download the original for its full formatting, equations, and images.';
    }else{text=new TextDecoder('utf-8',{fatal:true}).decode(await file.arrayBuffer());}
    if(text.length>4_000_000)throw new Error('This file contains too much text. Split it into smaller materials.');
-   if(kind==='latex'){const {latexToStudyText}=await import('./cbt-import');text=latexToStudyText(text);warning='LaTeX is rendered as readable text and math. External images, included files, and custom macros are not executed.';}
+   if(kind==='latex'){const {latexResourceToMarkdown}=await import('./resource-latex');text=latexResourceToMarkdown(text);warning='The reader displays LaTeX text and equations. The original download preserves the complete source.';}
    pages=splitTextSections(text);if(!text.trim())warning='No readable text was found in this file. You can still download the original.';
  }
- return {version:1,name:file.name,kind,pages,wordCount:pages.reduce((sum,p)=>sum+(p.text.trim()?p.text.trim().split(/\s+/u).length:0),0),warning};
+ return {version:1,name:file.name,kind,pages,wordCount:pages.reduce((sum,p)=>sum+(p.text.trim()?p.text.trim().split(/\s+/u).length:0),0),warning,...(kind==='latex'?{latexPresentation:1 as const}:{})};
 }

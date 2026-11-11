@@ -2,12 +2,11 @@ import { SmoothSelect } from './components/ui/SmoothSelect';
 import { useEffect, useId, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { createPortal, flushSync } from 'react-dom';
-import { Search, ArrowRight, Eye, EyeOff, RotateCcw, Sparkles, CalendarPlus, Pencil, Trash2, ImagePlus, Star, Check, X, Plus, ChevronDown, ZoomIn, ImageOff, ArrowLeft, SlidersHorizontal } from 'lucide-react';
+import { Search, ArrowRight, Eye, EyeOff, RotateCcw, BookOpenCheck, CalendarClock, CalendarPlus, CircleCheck, Lightbulb, Pencil, Trash2, ImagePlus, Star, Check, X, Plus, ChevronDown, ZoomIn, ImageOff, ArrowLeft, SlidersHorizontal } from 'lucide-react';
 import type { Mistake } from './model';
 import { categories, day, dateLabel, linkedTask, reviewResult, uid } from './model';
 import { fileStore, useStore } from './store';
 import { Empty, Markdown, Modal, gsap, useGSAP, Flip, duration } from './ui';
-import { StudyIllustration } from './StudyIllustration';
 import './mistake-book.css';
 
 export function Attachment({ id, alt = 'Attached question or working' }: { id: string; alt?: string }) {
@@ -74,21 +73,32 @@ export function MistakeCard({ mistake, onEdit }: { mistake: Mistake; onEdit: (mi
     <div className="mistake-card-heading">{sourceTitle && <p className="mistake-source">{mistake.title}</p>}<h2>{sourceTitle ? mistake.topic : mistake.title}</h2>{!sourceTitle && mistake.topic && <p className="mistake-topic">{mistake.topic}</p>}</div>
     <div className="mistake-question"><Markdown>{mistake.prompt}</Markdown></div>
     {mistake.image && <Attachment id={mistake.image} alt={`Question attachment for ${mistake.title}`} />}
-    <details className="wrong-approach mistake-approach"><summary><Plus size={13} className="approach-plus" aria-hidden="true" /><span>My previous approach</span><ChevronDown size={12} className="approach-chevron" aria-hidden="true" /></summary><div><Markdown>{mistake.wrong || 'No previous approach recorded.'}</Markdown></div></details>
-    {!revealed ? <div className="recall-cover mistake-recall"><div><StudyIllustration variant="mistakes" className="mistake-recall-art" size={66} /><span>Pause. Try it yourself first.<small>Recall before you reveal.</small></span></div><button type="button" className="mistake-reveal-button" onClick={reveal} aria-expanded={false} aria-controls={solutionId}>Reveal solution<Eye size={13} aria-hidden="true" /></button></div> : <div className="solution-body mistake-solution" id={solutionId}><div className="solution-content"><div className="mistake-solution-label"><Sparkles size={13} aria-hidden="true" /><span>The reasoning</span></div><Markdown>{mistake.solution}</Markdown>{mistake.takeaway && <div className="takeaway mistake-takeaway"><Sparkles size={15} aria-hidden="true" /><div><span>Keep this in mind</span><Markdown>{mistake.takeaway}</Markdown></div></div>}</div><p className="mistake-assessment-label">How did it go this time?</p><div className="assessment-actions"><button type="button" className="assessment-choice failed" onClick={() => assess('failed')}><RotateCcw size={14} /><span>Failed again<small>Review in 1 day</small></span></button><button type="button" className="assessment-choice effort" onClick={() => assess('effort')}><span>With effort<small>Review in 3 days</small></span></button><button type="button" className="assessment-choice mastered" onClick={() => assess('mastered')}><Check size={14} /><span>Mastered<small>Review in 14 days</small></span></button></div><button type="button" className="mistake-hide-solution" onClick={() => setRevealed(false)} aria-expanded={true} aria-controls={solutionId}><EyeOff size={12} />Hide solution</button></div>}
+    {mistake.wrong?.trim() && <details className="wrong-approach mistake-approach"><summary><Plus size={13} className="approach-plus" aria-hidden="true" /><span>My previous approach</span><ChevronDown size={12} className="approach-chevron" aria-hidden="true" /></summary><div><Markdown>{mistake.wrong}</Markdown></div></details>}
+    {!revealed ? <div className="recall-cover mistake-recall"><div><Lightbulb size={16} aria-hidden="true" /><span>Try it yourself first.</span></div><button type="button" className="mistake-reveal-button" onClick={reveal} aria-expanded={false} aria-controls={solutionId}>Reveal solution<Eye size={13} aria-hidden="true" /></button></div> : <div className="solution-body mistake-solution" id={solutionId}><div className="solution-content"><div className="mistake-solution-label"><BookOpenCheck size={14} aria-hidden="true" /><span>The reasoning</span></div><Markdown>{mistake.solution}</Markdown>{mistake.solutionImage && <Attachment id={mistake.solutionImage} alt={`Printed answer for ${mistake.title}`} />}{mistake.takeaway && <div className="takeaway mistake-takeaway"><Lightbulb size={15} aria-hidden="true" /><div><span>Keep this in mind</span><Markdown>{mistake.takeaway}</Markdown></div></div>}</div><p className="mistake-assessment-label">How did it go this time?</p><div className="assessment-actions"><button type="button" className="assessment-choice failed" onClick={() => assess('failed')}><RotateCcw size={14} /><span>Failed again<small>Review in 1 day</small></span></button><button type="button" className="assessment-choice effort" onClick={() => assess('effort')}><span>With effort<small>Review in 3 days</small></span></button><button type="button" className="assessment-choice mastered" onClick={() => assess('mastered')}><Check size={14} /><span>Mastered<small>Review in 14 days</small></span></button></div><button type="button" className="mistake-hide-solution" onClick={() => setRevealed(false)} aria-expanded={true} aria-controls={solutionId}><EyeOff size={12} />Hide solution</button></div>}
     <footer className="mistake-footer"><button type="button" className="mistake-schedule-trigger" onClick={() => { setScheduling(!scheduling); setScheduled(mistake.review || day()); setScheduleError(''); }} aria-expanded={scheduling} aria-controls={scheduleId}><CalendarPlus size={13} /><span>Schedule re-attempt</span></button></footer>
     {scheduling && <div className="schedule-inline mistake-schedule" id={scheduleId}><label>Re-attempt date<input aria-label="Re-attempt date" type="date" required value={scheduled} onInput={event => { setScheduled(event.currentTarget.value); setScheduleError(''); }} onChange={event => { setScheduled(event.target.value); setScheduleError(''); }} /></label><button type="button" className="mistake-schedule-save" disabled={!scheduled} onClick={schedule}>Schedule<Check size={13} /></button><button type="button" className="mistake-schedule-cancel" aria-label="Cancel scheduling" onClick={() => setScheduling(false)}><X size={15} /></button>{scheduleError && <p role="alert">{scheduleError}</p>}</div>}
   </article>;
 }
 
-const categoryLabels: Record<string, string> = { 'Conceptual gap': 'Conceptual', 'Formula misapplication': 'Formula', 'Calculation error': 'Calculation', 'Misread question': 'Misread', 'Time pressure': 'Time pressure' };
-const shortCategory = (category: string) => categoryLabels[category] || category;
 export function Mistakes({ search, onSearchChange, selectedId, clearSelection, onAdd: _onAdd, onEdit }: { search: string; onSearchChange?: (value: string) => void; selectedId?: string; clearSelection: () => void; onAdd: () => void; onEdit: (mistake: Mistake) => void }) {
   const { data } = useStore(), [subject, setSubject] = useState('all'), [category, setCategory] = useState('all'), [status, setStatus] = useState('all'), [localSearch, setLocalSearch] = useState(search);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const filtersId = useId();
   const ref = useRef<HTMLDivElement>(null), searchRef = useRef<HTMLInputElement>(null), { contextSafe } = useGSAP({ scope: ref });
   const query = onSearchChange ? search : localSearch;
   useEffect(() => setLocalSearch(search), [search]);
-  useEffect(() => { const shortcut = (event: globalThis.KeyboardEvent) => { if (event.defaultPrevented || !(event.metaKey || event.ctrlKey) || event.altKey || event.shiftKey || event.key.toLowerCase() !== 'k' || document.querySelector('[role="dialog"],[role="listbox"]')) return; event.preventDefault(); event.stopPropagation(); searchRef.current?.focus(); searchRef.current?.select(); }; document.addEventListener('keydown', shortcut, true); return () => document.removeEventListener('keydown', shortcut, true); }, []);
+  useEffect(() => {
+    function shortcut(event: KeyboardEvent) {
+      const input = searchRef.current;
+      if (!input || event.defaultPrevented || !(event.metaKey || event.ctrlKey) || event.altKey || event.shiftKey || event.key.toLowerCase() !== 'k' || document.querySelector('[role="dialog"],[role="listbox"]')) return;
+      event.preventDefault();
+      event.stopPropagation();
+      input.focus();
+      input.select();
+    }
+    document.addEventListener('keydown', shortcut, true);
+    return () => document.removeEventListener('keydown', shortcut, true);
+  }, []);
   const change = contextSafe((fn: () => void) => { const state = Flip.getState(ref.current?.querySelectorAll('.mistake-card') || []); flushSync(fn); Flip.from(state, { duration: duration(.28), ease: 'power3.out', stagger: duration(.025), absolute: true, fade: true }); });
   const setQuery = (value: string) => { setLocalSearch(value); onSearchChange?.(value); };
   const allCategories = [...new Set([...categories, ...data.mistakes.map(mistake => mistake.category)])];
@@ -98,23 +108,61 @@ export function Mistakes({ search, onSearchChange, selectedId, clearSelection, o
     return (!selectedId || mistake.id === selectedId) && (subject === 'all' || mistake.subject === subject) && (category === 'all' || mistake.category === category) && (status === 'all' || (status === 'due' ? !!mistake.review && mistake.review <= day() : mistake.status === status)) && matchesQuery;
   });
   const due = data.mistakes.filter(mistake => !!mistake.review && mistake.review <= day()).length;
-  const counts = allCategories.map((name, index) => ({ name, index, count: data.mistakes.filter(mistake => mistake.category === name).length }));
-  const activeFilters = subject !== 'all' || category !== 'all' || status !== 'all' || !!query || !!selectedId;
-  function clearFilters() { change(() => { setSubject('all'); setCategory('all'); setStatus('all'); setQuery(''); clearSelection(); }); }
-  return <div className="mistake-book" ref={ref}>
-    <div className="mistake-focus-overview">
-      <div className="mistake-stat mistake-focus-stat"><span className="mistake-stat-label"><SlidersHorizontal size={11} />Where to focus</span><div className="mistake-distribution" aria-label="Error categories across all captured mistakes">{data.mistakes.length ? counts.filter(item => item.count > 0).map(item => <DistributionSegment key={item.name} count={item.count} total={data.mistakes.length} category={item.index} name={item.name} onClick={() => change(() => { setCategory(category === item.name ? 'all' : item.name); clearSelection(); })} active={category === item.name} />) : <span className="mistake-distribution-empty" />}</div><div className="mistake-distribution-legend">{counts.map(item => <button type="button" key={item.name} className={category === item.name ? 'active' : ''} aria-pressed={category === item.name} onClick={() => change(() => { setCategory(category === item.name ? 'all' : item.name); clearSelection(); })} title={`${item.name}: ${item.count} of ${data.mistakes.length}`}><i className={`error-tone-${item.index % 5}`} /><span><b>{Math.round(item.count / Math.max(data.mistakes.length, 1) * 100)}%</b> {shortCategory(item.name)}</span></button>)}</div></div>
-    </div>
-    <div className="learning-banner mistake-due-banner"><StudyIllustration variant="mistakes" className="mistake-banner-art" size={124} /><div><h2>{due ? `${due} ${due === 1 ? 'mistake is' : 'mistakes are'} due for review` : 'You’re up to date'}</h2><p>{due ? 'A fresh attempt turns a previous mistake into understanding.' : 'Your scheduled reviews will appear here when they’re due.'}</p></div><button type="button" className="mistake-review-due" disabled={!due} onClick={() => change(() => { setStatus('due'); setSubject('all'); setCategory('all'); setQuery(''); clearSelection(); })}>Review due cards<ArrowRight size={14} aria-hidden="true" /></button></div>
-    <div className="mistake-toolbar"><div className="mistake-filter-group"><SmoothSelect aria-label="Filter mistakes by subject" value={subject} onChange={event => change(() => setSubject(event.target.value))}><option value="all">All subjects</option>{data.subjects.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</SmoothSelect><SmoothSelect aria-label="Filter by error category" value={category} onChange={event => change(() => setCategory(event.target.value))}><option value="all">All error categories</option>{allCategories.map(item => <option key={item}>{item}</option>)}</SmoothSelect><SmoothSelect aria-label="Filter by review status" value={status} onChange={event => change(() => setStatus(event.target.value))}><option value="all">All review statuses</option><option value="due">Due for review</option><option>Needs review</option><option>In progress</option><option>Mastered</option></SmoothSelect></div><label className="mistake-search"><Search size={14} aria-hidden="true" /><input ref={searchRef} aria-label="Search questions, tags, or concepts" placeholder="Search questions, tags, or concepts…" value={query} onChange={event => setQuery(event.target.value)} />{query ? <button type="button" aria-label="Clear mistake search" onClick={() => setQuery('')}><X size={12} /></button> : <kbd title="Command K or Control K">⌘K</kbd>}</label><span className="mistake-entry-count" role="status">{filtered.length} {filtered.length === 1 ? 'entry' : 'entries'}</span></div>
-    {(activeFilters || selectedId) && <div className="mistake-filter-state">{selectedId ? <button type="button" onClick={clearSelection}><ArrowLeft size={12} />Back to all mistakes</button> : <span>Showing {filtered.length} of {data.mistakes.length} entries</span>}<button type="button" onClick={clearFilters}><X size={11} />Clear filters</button></div>}
-    <div className="mistake-grid">{filtered.map(mistake => <MistakeCard key={mistake.id} mistake={mistake} onEdit={onEdit} />)}</div>
-    {!filtered.length && <Empty illustration="mistakes" title={data.mistakes.length ? 'A little room to refocus' : 'A fresh page'} description={data.mistakes.length ? 'No questions match this view. Try a different subject, category, or search.' : 'Capture a question using Log mistake above. Your questions, reasoning, and review schedule will live here.'} action={activeFilters ? <button type="button" className="mistake-empty-reset" onClick={clearFilters}>Clear filters<RotateCcw size={13} /></button> : undefined} />}
-  </div>;
-}
+  const filterCount = [subject, category, status].filter(value => value !== 'all').length;
+  const activeFilters = filterCount > 0 || !!query.trim();
+  const reviewingDue = status === 'due' && filterCount === 1 && !query.trim() && !selectedId;
 
-function DistributionSegment({ count, total, category, name, onClick, active }: { count: number; total: number; category: number; name: string; onClick: () => void; active: boolean }) {
-  const ref = useRef<HTMLSpanElement>(null);
-  useGSAP(() => { gsap.fromTo(ref.current, { scaleX: 0 }, { scaleX: 1, duration: duration(.6), ease: 'expo.out' }); }, { scope: ref, dependencies: [count, total], revertOnUpdate: true });
-  return <button type="button" className={`mistake-distribution-segment ${active ? 'active' : ''}`} style={{ flexGrow: count }} onClick={onClick} aria-pressed={active} aria-label={`${name}: ${count} mistakes, ${Math.round(count / total * 100)} percent. Filter this category.`} title={`${name}: ${count}`}><span ref={ref} className={`error-tone-${category % 5}`} /></button>;
+  function resetView(nextStatus = 'all') {
+    change(() => {
+      setSubject('all');
+      setCategory('all');
+      setStatus(nextStatus);
+      setQuery('');
+      clearSelection();
+    });
+  }
+
+  if (data.mistakes.length === 0) return <div className="mistake-book" ref={ref}>
+    <Empty illustration="notebook" title="A fresh page" description="Log a mistake to keep the question, your reasoning, and the next review together." />
+  </div>;
+
+  return <div className="mistake-book" ref={ref}>
+    <div className={`mistake-review-summary${due > 0 ? ' is-due' : ''}`}>
+      {due > 0 ? <CalendarClock size={18} aria-hidden="true" /> : <CircleCheck size={18} aria-hidden="true" />}
+      <p>{due > 0 ? `${due} ${due === 1 ? 'mistake' : 'mistakes'} due for review` : 'You’re up to date'}</p>
+      {due > 0 && <button type="button" className="mistake-review-due" aria-pressed={reviewingDue} onClick={() => resetView(reviewingDue ? 'all' : 'due')}>
+        Review due<ArrowRight size={14} aria-hidden="true" />
+      </button>}
+    </div>
+
+    <div className="mistake-toolbar">
+      <label className="mistake-search">
+        <Search size={16} aria-hidden="true" />
+        <input ref={searchRef} aria-label="Search mistakes" placeholder="Search mistakes…" value={query} onChange={event => setQuery(event.target.value)} />
+        {query && <button type="button" aria-label="Clear mistake search" onClick={() => { setQuery(''); searchRef.current?.focus(); }}><X size={14} aria-hidden="true" /></button>}
+      </label>
+      <button type="button" className="mistake-filter-toggle" aria-expanded={filtersOpen} aria-controls={filtersId} onClick={() => setFiltersOpen(open => !open)}>
+        <SlidersHorizontal size={15} aria-hidden="true" />Filters{filterCount > 0 && <span>{filterCount}</span>}
+      </button>
+      <div className="mistake-filter-group" id={filtersId} hidden={!filtersOpen}>
+        <SmoothSelect aria-label="Filter mistakes by subject" value={subject} onChange={event => change(() => setSubject(event.target.value))}>
+          <option value="all">All subjects</option>
+          {data.subjects.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
+        </SmoothSelect>
+        <SmoothSelect aria-label="Filter by error category" value={category} onChange={event => change(() => setCategory(event.target.value))}>
+          <option value="all">All categories</option>
+          {allCategories.map(item => <option key={item}>{item}</option>)}
+        </SmoothSelect>
+        <SmoothSelect aria-label="Filter by review status" value={status} onChange={event => change(() => setStatus(event.target.value))}>
+          <option value="all">All statuses</option><option value="due">Due for review</option><option>Needs review</option><option>In progress</option><option>Mastered</option>
+        </SmoothSelect>
+      </div>
+    </div>
+
+    <div className="mistake-list-meta">
+      {selectedId ? <button type="button" onClick={clearSelection}><ArrowLeft size={14} aria-hidden="true" />Back to all mistakes</button> : <span role="status">{activeFilters ? `${filtered.length} of ${data.mistakes.length} mistakes` : `${data.mistakes.length} ${data.mistakes.length === 1 ? 'mistake' : 'mistakes'}`}</span>}
+      {activeFilters && <button type="button" onClick={() => resetView()}>Clear filters</button>}
+    </div>
+    {filtered.length > 0 ? <div className="mistake-grid">{filtered.map(mistake => <MistakeCard key={mistake.id} mistake={mistake} onEdit={onEdit} />)}</div> : <Empty illustration="mistakes" title="No matching mistakes" description={selectedId ? 'Return to all mistakes to keep reviewing.' : 'Try a different search or clear your filters.'} />}
+  </div>;
 }

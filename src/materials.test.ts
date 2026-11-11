@@ -1,10 +1,47 @@
 import {describe,it,expect} from 'vitest';
 import {extractMaterial,materialKind,validateMaterial,splitTextSections,searchMaterial,speechChunks,MAX_FILE_SIZE} from './materials';
+import {latexResourceToMarkdown} from './resource-latex';
 describe('uploaded material validation',()=>{
  it('recognizes supported file types without relying on a browser MIME type',()=>{expect(materialKind('LECTURE.PDF')).toBe('pdf');expect(materialKind('notes.docx')).toBe('docx');expect(materialKind('notes.md')).toBe('markdown');expect(materialKind('notes.txt')).toBe('text');expect(materialKind('script.html')).toBe(null);});
  it('rejects empty, oversized, and unsupported files',()=>{expect(()=>validateMaterial({name:'notes.pdf',size:0})).toThrow('empty');expect(()=>validateMaterial({name:'notes.pdf',size:MAX_FILE_SIZE+1})).toThrow('25 MB');expect(()=>validateMaterial({name:'old.doc',size:1})).toThrow('.docx');});
  it('extracts the original UTF-8 text without substituting content',async()=>{const content='Personal notes\n\nEnergy = शक्ति.\nReview on Monday.';const result=await extractMaterial(new File([content],'notes.txt'));expect(result.pages[0].text).toBe(content);expect(result.kind).toBe('text');expect(result.wordCount).toBe(8);});
  it('retains Markdown source as readable material',async()=>{const content='# My revision\n\n- Revisit $E=mc^2$.';const result=await extractMaterial(new File([content],'revision.md'));expect(result.pages[0].text).toBe(content);expect(result.kind).toBe('markdown');});
+ it('renders complete LaTeX documents with questions, lists, math, and tables without keeping preamble commands',async()=>{
+   const content=String.raw`\documentclass{article}
+\usepackage{amsmath}
+\begin{document}
+\papertitle{Chemistry: Competency Test}{Acids and bases}
+\begin{questionblock}{12} What forms in water?
+\begin{enumerate}[label=\Alph*.]
+\item Water \(\rightarrow\) H\textsubscript{3}O\textsuperscript{+}
+\item Salt
+\end{enumerate}
+\end{questionblock}
+\begin{gather*} x=2 \\ y=3 \end{gather*}
+\begin{tabular}{p{20mm}c}
+\textbf{Solution} & \textbf{pH} \\
+Water & 7 \\
+\end{tabular}
+\end{document}
+
+## My study notes
+
+Review the reaction.`;
+   const result=await extractMaterial(new File([content],'main.tex'));
+   const preview=result.pages.map(page=>page.text).join('\n');
+   expect(preview).toBe(latexResourceToMarkdown(content));
+   expect(result.latexPresentation).toBe(1);
+   expect(preview).toContain('# Chemistry: Competency Test');
+   expect(preview).toContain('### Question 12');
+   expect(preview).toContain(String.raw`- **(A)** Water $\rightarrow$ H\textsubscript{3}O\textsuperscript{+}`);
+   expect(preview).toContain('- **(B)** Salt');
+   expect(preview).toContain(String.raw`\begin{gathered}`);
+   expect(preview).toContain(String.raw`x=2 \\ y=3`);
+   expect(preview).toContain('| Water | 7 |');
+   expect(preview).toContain('## My study notes');
+   expect(preview).not.toMatch(/documentclass|usepackage|questionblock|Alph|tabular/);
+   expect(searchMaterial(result.pages,'reaction')).toHaveLength(1);
+ });
 });
 describe('reader search and speech',()=>{
  it('finds literal, case-insensitive matches across pages',()=>{expect(searchMaterial([{number:1,text:'E = mc^2. E = MC^2'},{number:2,text:'mc^2'}],'mc^2')).toEqual([{pageIndex:0,start:4,end:8},{pageIndex:0,start:14,end:18},{pageIndex:1,start:0,end:4}]);});

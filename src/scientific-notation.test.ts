@@ -37,6 +37,14 @@ describe('explicit scientific notation', () => {
     expect(html).not.toContain('math-source-error');
   });
 
+  it('renders equation environments in Markdown notes while keeping code examples literal', () => {
+    const align = String.raw`\begin{align*} F &= ma \\ E &= mc^2 \end{align*}`;
+    const html = render(`# Revision\n\n${align}\n\n\`\`\`tex\n${align}\n\`\`\``);
+    expect(html.match(/display="true"/g)).toHaveLength(1);
+    expect(html).toContain('<mtable');
+    expect(html).toContain('language-tex');
+  });
+
   it('preserves fenced and inline code, escapes, ordinary chemical tokens and currency', () => {
     const source = [String.raw`H2O and x2 cost $25. Literal \\(x\\).`, '`\\(x^2\\)`', String.raw`
 ~~~tex

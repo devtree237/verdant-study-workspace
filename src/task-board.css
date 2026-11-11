@@ -1,18 +1,39 @@
+.task-view-panel {
+  min-width: 0;
+  padding: clamp(8px, 1.2vw, 18px);
+  border: 1px solid color-mix(in srgb, var(--surface-raised) 68%, var(--border));
+  border-radius: 20px;
+  background: linear-gradient(145deg, color-mix(in srgb, var(--surface-raised) 55%, transparent), color-mix(in srgb, var(--surface) 29%, transparent));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--surface-raised) 64%, transparent), var(--notebook-shadow);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+}
+
+:root[data-theme='dark'] .task-view-panel {
+  border-color: color-mix(in srgb, var(--control-border) 56%, transparent);
+  background: linear-gradient(145deg, color-mix(in srgb, var(--surface-raised) 64%, transparent), color-mix(in srgb, var(--surface) 48%, transparent));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--ink) 7%, transparent), var(--notebook-shadow);
+}
+
+.task-view-panel .workspace-toolbar { flex-wrap: wrap; }
+.task-view-panel .task-completed-heading { justify-content: flex-start; }
+.task-completed-heading > span { color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+
 .kanban.smart-board {
-  --board-lane: color-mix(in srgb, var(--surface-soft) 86%, var(--sky-blue));
+  --board-lane: color-mix(in srgb, var(--surface) 29%, transparent);
   --board-card: var(--surface);
   grid-template-columns: repeat(4, minmax(235px, 1fr));
   align-items: start;
   gap: 12px;
   min-height: 0;
-  padding: 4px 3px 12px;
+  padding: 2px 2px 8px;
   overflow-x: auto;
   scrollbar-width: thin;
   scrollbar-color: var(--control-border) transparent;
 }
 
 :root[data-theme='dark'] .kanban.smart-board {
-  --board-lane: color-mix(in srgb, var(--surface-raised) 86%, var(--sky-blue));
+  --board-lane: color-mix(in srgb, var(--surface-raised) 64%, transparent);
   --board-card: var(--surface-faint);
 }
 
@@ -22,10 +43,10 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
-  min-height: 178px;
-  padding: 9px;
-  border: 1px solid var(--border);
-  border-radius: 17px;
+  min-height: 112px;
+  padding: 8px;
+  border: 1px solid color-mix(in srgb, var(--control-border) 66%, transparent);
+  border-radius: 14px;
   background: var(--board-lane);
   transition: background-color 180ms var(--ease-out-expo), border-color 180ms var(--ease-out-expo), box-shadow 180ms var(--ease-out-expo);
 }
@@ -42,9 +63,9 @@
 .smart-board .board-heading {
   display: flex;
   align-items: center;
-  gap: 8px;
-  min-height: 35px;
-  margin: 0 5px 6px;
+  gap: 7px;
+  min-height: 36px;
+  margin: 0 2px 6px 5px;
   color: var(--muted);
 }
 
@@ -54,14 +75,12 @@
   color: var(--heading);
 }
 
-.smart-board .stage-dot { width: 7px; height: 7px; flex: none; }
-.smart-board .stage-0 { background: var(--accent); }
-.smart-board .stage-1 { background: #dbad58; }
-.smart-board .stage-2 { background: #61b7e5; }
-.smart-board .stage-3 { background: #52a987; }
+.board-stage-icon { color: var(--muted); stroke-width: 1.75; }
+.board-stage-icon[data-completed] { color: var(--accent); }
 
 .smart-board .board-heading .board-count {
   margin-inline-start: auto;
+  min-width: 1.5ch;
   color: var(--muted);
   font-family: inherit;
   font-size: 12px;
@@ -84,33 +103,29 @@
   min-width: 0;
   min-height: 0;
   margin: 0;
-  padding: 9px 11px 10px !important;
+  padding: 8px 9px 9px !important;
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 9px;
   background: var(--board-card);
   color: var(--ink);
-  box-shadow: 0 1px 2px #071b4010;
+  box-shadow: none;
   touch-action: auto;
-  transition: border-color 140ms ease, box-shadow 160ms ease;
+  transition: border-color 140ms ease;
 }
 
 :root[data-theme] .smart-board .board-task:is(:hover, :focus-within),
 :root .smart-board .board-task:is(:hover, :focus-within) {
   border-color: var(--control-border);
-  box-shadow: 0 4px 10px #071b4017;
+}
+
+:root .smart-board .board-task:is([data-priority="1"], [data-priority="2"], [data-priority="3"]) {
+  border-inline-start: 2px solid var(--board-priority);
 }
 
 :is(.board-task, .task-drag-preview) { --board-priority: var(--sky-cyan, #38bdf8); }
 :is(.board-task, .task-drag-preview)[data-priority="1"] { --board-priority: #e56a74; }
 :is(.board-task, .task-drag-preview)[data-priority="2"] { --board-priority: #e3ab57; }
 :is(.board-task, .task-drag-preview)[data-priority="3"] { --board-priority: #54b494; }
-
-.board-task-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  height: 17px;
-}
 
 .board-priority {
   display: block;
@@ -120,21 +135,25 @@
   background: var(--board-priority);
 }
 
-.smart-board .drag-handle {
+.smart-board :is(.drag-handle, .board-task-menu-trigger, .board-add) {
   position: static;
   display: grid;
   place-items: center;
-  width: 28px;
-  height: 26px;
-  margin-inline-end: -4px;
+  flex: none;
+  width: 30px;
+  height: 32px;
+  margin: 0;
   border-radius: 6px;
   color: var(--muted);
   opacity: 1;
+}
+
+.smart-board .drag-handle {
   cursor: grab;
   touch-action: none;
 }
 
-.smart-board .drag-handle:is(:hover, :focus-visible) {
+.smart-board :is(.drag-handle, .board-task-menu-trigger, .board-add):is(:hover, :focus-visible, [aria-expanded=true]) {
   color: var(--accent);
   background: var(--surface-hover);
 }
@@ -142,14 +161,15 @@
 .smart-board .drag-handle:active { cursor: grabbing; }
 
 .board-task-heading {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 4px;
 }
 
 .smart-board .task-checkbox {
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   margin: 0;
   border: 1.5px solid var(--control-border);
   background: var(--surface-hover);
@@ -158,14 +178,16 @@
 
 .smart-board .task-checkbox svg { width: 14px; height: 14px; }
 .smart-board .task-checkbox[aria-pressed=true] { background: var(--accent-soft); border-color: var(--accent); }
+.smart-board .task-checkbox[aria-pressed=false] .task-check-path { visibility: hidden; }
 
 .smart-board .board-task .task-title,
 :root[data-theme] .smart-board .board-task .task-title {
   display: -webkit-box;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 2;
   overflow: hidden;
-  min-height: 22px;
+  min-height: 30px;
+  text-align: left;
   font-size: 13px;
   font-weight: 600;
   line-height: 1.5;
@@ -179,7 +201,7 @@
 .board-task-notes {
   display: -webkit-box;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 2;
   overflow: hidden;
   overflow-wrap: anywhere;
   font-size: 12px;
@@ -187,19 +209,23 @@
   color: var(--muted);
 }
 
-.board-task-meta,
-.board-task-activity {
+.smart-board .board-task-notes { margin-inline-start: 28px; }
+
+.board-task-meta {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 5px 9px;
+  gap: 4px 9px;
   min-width: 0;
+  margin-inline-start: 28px;
   color: var(--muted);
   font-size: 11px;
 }
 
+.board-task-meta:empty { display: none; }
+
 .board-task-meta > span,
-.board-task-activity > button {
+.board-running-timer {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -218,73 +244,53 @@
 
 .board-task-meta .subject-dot { display: inline-block; margin-inline-end: 5px; }
 
-.board-task-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 4px 7px;
-}
-
-.board-task-activity > button {
-  min-height: 26px;
-  border-radius: 5px;
-}
-
-.board-task-activity > button:hover { color: var(--accent); }
-.board-task-actions > .flow-select-shell { margin-inline-start: auto; border-radius: 6px; }
-
-.smart-board .board-stage-select {
-  display: block;
-  height: 28px;
-  min-height: 28px;
-  margin: 0;
-  padding: 3px 24px 3px 8px !important;
-  border: 1px solid var(--border);
+.board-running-timer {
+  min-height: 24px;
   border-radius: 6px;
-  background: var(--control-bg);
-  color: var(--muted);
-  font-size: 11px;
-  line-height: 1.25;
+  padding: 0 5px;
+  color: var(--accent);
+  background: var(--accent-soft);
+  font-variant-numeric: tabular-nums;
 }
 
-.smart-board .board-task-actions .flow-select-chevron { right: 6px; }
-.smart-board .board-task-actions .flow-select-trigger:hover { background: var(--surface-hover) !important; }
+.board-menu-positioner { z-index: 92; }
 
-.board-footer { margin-block-start: 7px; }
+.board-task-menu {
+  min-width: 148px;
+  padding: 4px;
+  border: 1px solid var(--control-border);
+  border-radius: 9px;
+  background: var(--surface-raised);
+  color: var(--ink);
+  box-shadow: 0 6px 20px #071b4020;
+  outline: none;
+}
 
-.board-add {
+.board-task-menu [role=menuitem] {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 6px;
-  min-height: 38px;
-  width: 100%;
-  padding: 5px 8px;
-  border-radius: 8px;
-  color: var(--muted);
+  gap: 8px;
+  min-height: 33px;
+  padding: 5px 9px;
+  border-radius: 5px;
+  cursor: pointer;
   font-size: 12px;
-  transition: color 140ms ease, background-color 140ms ease;
 }
 
-.board-add:hover { background: var(--surface-hover); color: var(--accent); }
+.board-task-menu [role=menuitem][data-highlighted] { color: var(--accent); background: var(--surface-hover); }
+.board-menu-label { padding: 6px 9px 3px; color: var(--muted); font-size: 11px; }
+.board-menu-count { margin-inline-start: auto; color: var(--muted); }
 
 .board-no-tasks {
-  display: grid;
-  place-items: center;
-  min-height: 70px;
-  padding: 9px;
-  border: 1px dashed var(--control-border);
-  border-radius: 10px;
+  padding: 13px 6px;
   color: var(--muted);
   font-size: 12px;
-  text-align: center;
 }
 
 .board-drop-message {
   position: absolute;
   z-index: 12;
-  inset: auto 10px 48px;
+  inset: 49px 8px auto;
   padding: 9px;
   border: 1px solid var(--control-border);
   border-radius: 9px;
@@ -323,14 +329,23 @@
 
 .main-shell:has(.smart-board) .page-heading { margin-bottom: 16px; }
 .main-shell:has(.smart-board) :is(.page-heading .page-eyebrow, .page-heading p, .daily-progress, .tasks-footnote) { display: none; }
-.main-shell:has(.smart-board) .workspace-toolbar { margin-bottom: 10px; }
-.main-shell:has(.smart-board) .subject-filter { margin-bottom: 12px; }
-.tasks-engine:has(> .smart-board) .toolbar-select select { max-width: none; min-width: 108px; }
+.task-view-controls { display: flex; align-items: center; gap: 8px; }
+.board-view .workspace-toolbar { flex-wrap: wrap; margin-bottom: 12px; }
+.board-view .task-view-controls { flex-wrap: wrap; }
+.board-view .board-filter-select {
+  display: block;
+  width: clamp(90px, 11vw, 142px);
+  min-height: 32px;
+  max-width: none;
+  font-size: 12px;
+}
+.board-view .toolbar-select .board-filter-select { width: 105px; }
 .board-archive-announcement { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; pointer-events: none; }
 
 @media (max-width: 650px) {
   .kanban.smart-board { grid-template-columns: repeat(4, minmax(225px, 76%)); gap: 9px; }
-  .board-add { min-height: 42px; }
+  .smart-board :is(.drag-handle, .board-task-menu-trigger, .board-add) { width: 34px; height: 38px; }
+  .board-view .task-view-controls { gap: 5px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

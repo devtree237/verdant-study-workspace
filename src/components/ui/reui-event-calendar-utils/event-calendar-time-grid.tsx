@@ -171,18 +171,15 @@ function EventCalendarTimeGrid({
             toZoned(time, settings.timeZone).getMinutes()
       scrollTo(minutes)
     })
-    // Classic (width-consuming) scrollbars squeeze the scrolling track while
-    // the header/all-day rows outside keep full width, drifting the column
-    // borders. Mirror the measured gutter onto those rows via a CSS var -
-    // 0px for overlay scrollbars and the custom ScrollArea, so both modes
-    // lay out identically.
+    // Classic scrollbars squeeze the track without shrinking the fixed rows.
+    // Use the precise rendered width so their dividers align at any zoom.
     const root = el.closest<HTMLElement>(
       "[data-slot=event-calendar-time-grid], [data-slot=event-calendar-resource-view]"
     )
     const syncScrollbarGutter = () => {
       root?.style.setProperty(
         "--ec-scrollbar-w",
-        `${viewport ? viewport.offsetWidth - viewport.clientWidth : 0}px`
+        `${getCalendarScrollbarWidth(viewport)}px`
       )
     }
     syncScrollbarGutter()
@@ -247,7 +244,7 @@ function EventCalendarTimeGrid({
         startHour={startHour}
         interval={interval}
       />
-      <div className="grid min-w-0 flex-1" style={{ gridTemplateColumns }}>
+      <div className="grid min-w-0 flex-1" data-slot="event-calendar-time-columns" style={{ gridTemplateColumns, ...EVENT_CALENDAR_TIME_GRID_BACKGROUND }}>
         {days.map((day) => (
           <EventCalendarDayColumn
             key={day.getTime()}
@@ -907,16 +904,26 @@ function EventCalendarTimeGutter({
  */
 const EVENT_TRACK_WIDTH = "(100% - var(--ec-event-gutter, 0.75rem))"
 
-/** Solid hours, softer half hours and faint quarter-hour scheduling slots.
- * Explicit fallbacks keep the grid visible when utility color tokens are not
- * emitted as runtime variables by a consuming application. */
+function getCalendarScrollbarWidth(viewport: HTMLElement | null | undefined) {
+  const track = viewport?.firstElementChild
+  return viewport && track
+    ? Math.max(0, viewport.getBoundingClientRect().width - track.getBoundingClientRect().width)
+    : 0
+}
+
+// A single tiled background gives the columns continuous guides. End each slot
+// with its guide so the first slot does not add a second line under the header.
 const EVENT_CALENDAR_TIME_GRID_BACKGROUND = {
-  backgroundImage: [
-    "linear-gradient(to bottom, var(--ec-hour-line, var(--control-border, #d9dce3)) 1px, transparent 1px)",
-    "linear-gradient(to bottom, var(--ec-half-hour-line, color-mix(in srgb, var(--control-border, #d9dce3) 65%, transparent)) 1px, transparent 1px)",
-    "linear-gradient(to bottom, var(--ec-quarter-hour-line, color-mix(in srgb, var(--control-border, #d9dce3) 32%, transparent)) 1px, transparent 1px)",
-  ].join(", "),
-  backgroundSize: "100% var(--ec-hour-height), 100% calc(var(--ec-hour-height) / 2), 100% calc(var(--ec-hour-height) / 4)",
+  backgroundImage: `linear-gradient(to bottom,
+    transparent 0 calc(25% - 1px),
+    var(--ec-quarter-hour-line, #d9dce352) calc(25% - 1px) 25%,
+    transparent 25% calc(50% - 1px),
+    var(--ec-half-hour-line, #d9dce3a6) calc(50% - 1px) 50%,
+    transparent 50% calc(75% - 1px),
+    var(--ec-quarter-hour-line, #d9dce352) calc(75% - 1px) 75%,
+    transparent 75% calc(100% - 1px),
+    var(--ec-hour-line, var(--control-border, #d9dce3)) calc(100% - 1px) 100%)`,
+  backgroundSize: "100% var(--ec-hour-height)",
   backgroundRepeat: "repeat-y",
 } satisfies CSSProperties
 
@@ -1126,7 +1133,6 @@ function EventCalendarDayColumn({
       )}
       style={{
         height: `calc(var(--ec-hour-height) * ${boundsMinutes / 60})`,
-        ...EVENT_CALENDAR_TIME_GRID_BACKGROUND,
       }}
       onPointerDown={(e) => {
         if (e.target === e.currentTarget) gestures.beginCreate(e, day, false)
@@ -1376,6 +1382,7 @@ function EventCalendarDaysView(props: TimeGridViewProps) {
 
 export {
   EVENT_CALENDAR_TIME_GRID_BACKGROUND,
+  getCalendarScrollbarWidth,
   EVENT_TRACK_WIDTH,
   EventCalendarDayView,
   EventCalendarDaysView,

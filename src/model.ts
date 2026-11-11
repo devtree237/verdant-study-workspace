@@ -1,14 +1,17 @@
+import type { PracticePosition, PracticeProgressEntry } from './practice-types';
+
 export type Subject = { id: string; name: string; color: 'green' | 'blue' | 'orange' | 'purple' };
 export type Stage = 'To study' | 'In progress' | 'Practicing' | 'Completed';
 export type Task = { id: string; title: string; subject: string; priority: number; due: string; time?: string; duration: number; labels: string[]; stage: Stage; done: boolean; completedAt?: string; recurring?: boolean; reminder?: string; notes: string; subtasks: { id: string; title: string; done: boolean }[]; link?: { type: 'resource' | 'mistake'; id: string }; measuredSeconds?: number; trackingStartedAt?: string; };
 export type TaskHistoryEntry = Task & { archivedAt: string; subjectName?: string; subjectColor?: Subject['color'] };
 export const categories = ['Conceptual gap', 'Formula misapplication', 'Calculation error', 'Misread question', 'Time pressure'] as const;
-export type Mistake = { id: string; title: string; subject: string; topic: string; category: string; prompt: string; wrong: string; solution: string; takeaway: string; difficulty: number; mastery?: number; status: 'Needs review' | 'In progress' | 'Mastered'; review: string; attempts: number; image?: string; };
+export type Mistake = { id: string; title: string; subject: string; topic: string; category: string; prompt: string; wrong: string; solution: string; takeaway: string; difficulty: number; mastery?: number; status: 'Needs review' | 'In progress' | 'Mastered'; review: string; attempts: number; image?: string; solutionImage?: string; };
 export type Folder = { id: string; name: string; parent: string | null; subject: string; pinned: boolean; mastery: number };
 export type Question = { prompt: string; options: string[]; answer: number; explanation: string };
 export type Resource = { id: string; title: string; folder: string; subject: string; type: 'Note' | 'PDF' | 'Document' | 'Link' | 'Quiz'; content: string; url?: string; fileKey?: string; fileName?: string; fileSize?: number; fileKind?: 'pdf' | 'docx' | 'text' | 'markdown' | 'latex'; pageCount?: number; mastery: number; pinned: boolean; updated: string; questions?: Question[] };
 export type Assessment = { id: string; title: string; subject: string; score: number; date: string };
-export type State = { version: number; subjects: Subject[]; tasks: Task[]; taskHistory: TaskHistoryEntry[]; mistakes: Mistake[]; folders: Folder[]; resources: Resource[]; assessments: Assessment[]; focusMinutes: number; focusLog: { date: string; minutes: number }[] };
+export type PracticeActivity = { resume: PracticePosition | null; progress: Record<string, PracticeProgressEntry> };
+export type State = { version: number; subjects: Subject[]; tasks: Task[]; taskHistory: TaskHistoryEntry[]; mistakes: Mistake[]; folders: Folder[]; resources: Resource[]; assessments: Assessment[]; focusMinutes: number; focusLog: { date: string; minutes: number }[]; practice?: PracticeActivity };
 export const uid = () => crypto.randomUUID();
 export function day(offset = 0, base = new Date()): string { const d = new Date(base); d.setDate(d.getDate() + offset); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
 export function dateLabel(date: string) { if (!date) return 'No date'; if (date === day()) return 'Today'; if (date === day(1)) return 'Tomorrow'; return new Date(date+'T12:00:00').toLocaleDateString('en-IN', { day:'numeric',month:'short' }); }
